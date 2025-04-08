@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ChakraProvider, CSSReset } from '@chakra-ui/react';
+import { CSSReset } from '@chakra-ui/react';
 import { theme } from './theme';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
