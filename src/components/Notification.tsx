@@ -1,39 +1,34 @@
-import { Snackbar, Alert } from '@mui/material';
+import { useEffect } from 'react';
+import { useToast } from '@chakra-ui/react';
 
-export type NotificationType = 'success' | 'error' | 'info' | 'warning';
-
-export interface NotificationProps {
-  open: boolean;
+interface NotificationProps {
   message: string;
-  severity: NotificationType;
-  onClose: () => void;
-  autoHideDuration?: number;
+  type?: 'success' | 'error' | 'warning' | 'info';
+  duration?: number;
+  open?: boolean;
+  severity?: 'success' | 'error' | 'warning' | 'info';
+  onClose?: () => void;
 }
 
-const Notification = ({
-  open,
-  message,
-  severity,
-  onClose,
-  autoHideDuration = 6000
-}: NotificationProps) => {
-  return (
-    <Snackbar
-      open={open}
-      autoHideDuration={autoHideDuration}
-      onClose={onClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-    >
-      <Alert
-        onClose={onClose}
-        severity={severity}
-        variant="filled"
-        sx={{ width: '100%' }}
-      >
-        {message}
-      </Alert>
-    </Snackbar>
-  );
+export const Notification = ({ message, type, duration = 5000, open, severity, onClose }: NotificationProps) => {
+  const toast = useToast();
+
+  useEffect(() => {
+    if (!open) return;
+    
+    const status = (type || severity || 'info') as 'success' | 'error' | 'warning' | 'info' | 'loading';
+
+    toast({
+      title: message,
+      status,
+      duration,
+      isClosable: true,
+      position: 'top-right',
+      onCloseComplete: onClose,
+    });
+  }, [message, type, duration, toast, open, severity, onClose]);
+
+  return null;
 };
 
 export default Notification; 

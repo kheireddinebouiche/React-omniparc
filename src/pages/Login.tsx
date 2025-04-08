@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Container,
   Box,
-  Typography,
-  TextField,
+  Heading,
+  Input,
   Button,
-  Paper,
   Link,
   Alert,
-  CircularProgress,
-} from '@mui/material';
+  AlertIcon,
+  Spinner,
+  VStack,
+  FormControl,
+  FormLabel,
+  useToast,
+} from '@chakra-ui/react';
 import { login, clearError } from '../store/slices/authSlice';
 import { RootState, AppDispatch } from '../store';
 
@@ -20,6 +24,7 @@ const Login = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { loading, error, user } = useSelector((state: RootState) => state.auth);
   const isAuthenticated = !!user;
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -49,76 +54,78 @@ const Login = () => {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
+    <Container maxW="md" py={10}>
       <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
+        mt={8}
+        display="flex"
+        flexDirection="column"
+        alignItems="center"
       >
-        <Paper
-          elevation={3}
-          sx={{
-            padding: 4,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            width: '100%',
-          }}
+        <Box
+          p={8}
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          width="100%"
+          borderRadius="lg"
+          boxShadow="lg"
+          bg="white"
         >
-          <Typography component="h1" variant="h5">
+          <Heading as="h1" size="lg" mb={6}>
             Connexion
-          </Typography>
+          </Heading>
           {error && (
-            <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
+            <Alert status="error" mb={4} width="100%">
+              <AlertIcon />
               {error}
             </Alert>
           )}
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="Adresse email"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              value={formData.email}
-              onChange={handleChange}
-              disabled={loading}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Mot de passe"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              value={formData.password}
-              onChange={handleChange}
-              disabled={loading}
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
-            >
-              {loading ? <CircularProgress size={24} /> : 'Se connecter'}
-            </Button>
-            <Box sx={{ textAlign: 'center' }}>
-              <Link href="/register" variant="body2">
-                {"Vous n'avez pas de compte ? Inscrivez-vous"}
-              </Link>
-            </Box>
+          <Box as="form" onSubmit={handleSubmit} width="100%">
+            <VStack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel>Adresse email</FormLabel>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  autoFocus
+                  value={formData.email}
+                  onChange={handleChange}
+                  isDisabled={loading}
+                />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Mot de passe</FormLabel>
+                <Input
+                  name="password"
+                  type="password"
+                  id="password"
+                  autoComplete="current-password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  isDisabled={loading}
+                />
+              </FormControl>
+              <Button
+                type="submit"
+                width="100%"
+                colorScheme="blue"
+                mt={6}
+                mb={4}
+                isLoading={loading}
+                loadingText="Connexion en cours..."
+              >
+                Se connecter
+              </Button>
+              <Box textAlign="center">
+                <Link as={RouterLink} to="/register" color="blue.500">
+                  Vous n'avez pas de compte ? Inscrivez-vous
+                </Link>
+              </Box>
+            </VStack>
           </Box>
-        </Paper>
+        </Box>
       </Box>
     </Container>
   );

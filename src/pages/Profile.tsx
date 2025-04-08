@@ -3,16 +3,24 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   Container,
   Box,
-  Typography,
-  TextField,
+  Heading,
+  Text,
+  Input,
   Button,
-  Paper,
+  VStack,
+  HStack,
   Grid,
   Alert,
-  CircularProgress,
+  AlertIcon,
+  Spinner,
   Avatar,
   Divider,
-} from '@mui/material';
+  FormControl,
+  FormLabel,
+  useColorModeValue,
+  Card,
+  CardBody,
+} from '@chakra-ui/react';
 import { RootState, AppDispatch } from '../store';
 import { updateProfile } from '../store/slices/authSlice';
 import { User } from '../types';
@@ -27,6 +35,9 @@ const Profile = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  
+  const cardBg = useColorModeValue('white', 'gray.800');
+  const textColor = useColorModeValue('gray.600', 'gray.400');
 
   useEffect(() => {
     if (user) {
@@ -58,118 +69,123 @@ const Profile = () => {
   if (!user) {
     return (
       <Container>
-        <Typography variant="h5" component="h1" gutterBottom>
+        <Heading as="h1" size="lg" mb={4}>
           Veuillez vous connecter pour accéder à votre profil
-        </Typography>
+        </Heading>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Paper sx={{ p: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
+    <Container maxW="md" py={8}>
+      <Card bg={cardBg} borderRadius="lg" boxShadow="md">
+        <CardBody p={6}>
+          <HStack align="center" mb={6}>
             <Avatar
-              sx={{
-                width: 100,
-                height: 100,
-                bgcolor: 'primary.main',
-                fontSize: '2.5rem',
-                mr: 2,
-              }}
+              size="xl"
+              bg="primary.500"
+              color="white"
+              fontSize="2xl"
+              name={`${user.firstName} ${user.lastName}`}
             >
               {user.firstName[0]}
               {user.lastName[0]}
             </Avatar>
             <Box>
-              <Typography variant="h4" component="h1">
+              <Heading as="h1" size="xl">
                 {user.firstName} {user.lastName}
-              </Typography>
-              <Typography variant="subtitle1" color="text.secondary">
+              </Heading>
+              <Text color={textColor}>
                 {user.role}
-              </Typography>
+              </Text>
             </Box>
-          </Box>
+          </HStack>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert status="error" mb={4}>
+              <AlertIcon />
               {error}
             </Alert>
           )}
 
           {successMessage && (
-            <Alert severity="success" sx={{ mb: 2 }}>
+            <Alert status="success" mb={4}>
+              <AlertIcon />
               {successMessage}
             </Alert>
           )}
 
-          <Divider sx={{ my: 3 }} />
+          <Divider my={6} />
 
-          <Box component="form" onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Prénom"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  disabled={!isEditing || loading}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Nom"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  disabled={!isEditing || loading}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={!isEditing || loading}
-                />
-              </Grid>
-            </Grid>
-
-            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-              {isEditing ? (
-                <>
+          {isEditing ? (
+            <Box as="form" onSubmit={handleSubmit}>
+              <VStack spacing={4}>
+                <FormControl>
+                  <FormLabel>Prénom</FormLabel>
+                  <Input
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Nom</FormLabel>
+                  <Input
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Email</FormLabel>
+                  <Input
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+                <HStack spacing={4} width="100%" justify="flex-end">
                   <Button
-                    variant="contained"
-                    type="submit"
-                    disabled={loading}
-                  >
-                    {loading ? <CircularProgress size={24} /> : 'Enregistrer'}
-                  </Button>
-                  <Button
-                    variant="outlined"
+                    variant="outline"
                     onClick={() => setIsEditing(false)}
-                    disabled={loading}
                   >
                     Annuler
                   </Button>
-                </>
-              ) : (
-                <Button
-                  variant="contained"
-                  onClick={() => setIsEditing(true)}
-                >
-                  Modifier le profil
-                </Button>
-              )}
+                  <Button
+                    colorScheme="primary"
+                    type="submit"
+                    isLoading={loading}
+                    loadingText="Enregistrement..."
+                  >
+                    Enregistrer
+                  </Button>
+                </HStack>
+              </VStack>
             </Box>
-          </Box>
-        </Paper>
-      </Box>
+          ) : (
+            <VStack align="stretch" spacing={4}>
+              <Grid templateColumns="1fr 2fr" gap={4}>
+                <Text fontWeight="bold">Prénom:</Text>
+                <Text>{user.firstName}</Text>
+                <Text fontWeight="bold">Nom:</Text>
+                <Text>{user.lastName}</Text>
+                <Text fontWeight="bold">Email:</Text>
+                <Text>{user.email}</Text>
+                <Text fontWeight="bold">Rôle:</Text>
+                <Text>{user.role}</Text>
+              </Grid>
+              <Button
+                colorScheme="primary"
+                onClick={() => setIsEditing(true)}
+                alignSelf="flex-end"
+              >
+                Modifier le profil
+              </Button>
+            </VStack>
+          )}
+        </CardBody>
+      </Card>
     </Container>
   );
 };

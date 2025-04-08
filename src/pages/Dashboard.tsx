@@ -4,51 +4,53 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   Container,
   Box,
-  Typography,
-  Tabs,
-  Tab,
-  Paper,
+  Text,
+  Heading,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  Input,
+  InputGroup,
+  InputRightElement,
+  Badge,
   Card,
-  CardContent,
-  CardActions,
-  CardMedia,
-  Chip,
+  CardBody,
+  CardFooter,
+  Image,
+  Stack,
+  Tag,
   IconButton,
   Alert,
-  MenuItem,
-  Grid,
-  Rating,
-  Tooltip,
-  Badge,
-  Divider,
-  FormControl,
-  InputLabel,
+  AlertIcon,
   Select,
-  Stack,
-  CircularProgress,
-  useTheme,
+  FormControl,
+  FormLabel,
+  Grid,
+  GridItem,
+  useDisclosure,
   useMediaQuery,
-} from '@mui/material';
+  ThemeTypings,
+  HStack,
+} from '@chakra-ui/react';
 import {
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  LocationOn as LocationIcon,
-  AccessTime as TimeIcon,
-  Euro as EuroIcon,
-  Category as CategoryIcon,
-  TrendingUp as TrendingUpIcon,
-  Inventory as InventoryIcon,
-  CheckCircle as CheckCircleIcon,
-  Add as AddIcon,
-} from '@mui/icons-material';
+  FaEdit,
+  FaTrash,
+  FaMapMarkerAlt,
+  FaClock,
+  FaEuroSign,
+  FaList,
+  FaChartLine,
+  FaBox,
+  FaCheckCircle,
+  FaPlus,
+} from 'react-icons/fa';
 import { RootState } from '../store';
-import { UserRole, Equipment } from '../types/index';
+import { User, UserRole, Equipment } from '../types/index';
 import { addEquipment, updateEquipment, setEquipment } from '../store/slices/equipmentSlice';
 import * as equipmentService from '../services/equipmentService';
 import { useNotification } from '../contexts/NotificationContext';
@@ -75,17 +77,31 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+// Types pour les événements
+interface InputChangeEvent extends React.ChangeEvent<HTMLInputElement> {
+  target: HTMLInputElement & {
+    name: string;
+    value: string;
+  };
+}
+
+interface SelectChangeEvent extends React.ChangeEvent<HTMLSelectElement> {
+  target: HTMLSelectElement & {
+    name: string;
+    value: string;
+  };
+}
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user } = useSelector((state: RootState) => state.auth) as { user: User | null };
   const equipment = useSelector((state: RootState) => state.equipment.items);
   const loading = useSelector((state: RootState) => state.equipment.loading);
   const error = useSelector((state: RootState) => state.equipment.error);
   const { showNotification } = useNotification();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [openDialog, setOpenDialog] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isMobile] = useMediaQuery("(max-width: 48em)");
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -172,7 +188,7 @@ const Dashboard: React.FC = () => {
     });
     setSpecificationFields(['poids', 'puissance', 'capacité']);
     setLocalError('');
-    setOpenDialog(true);
+    onOpen();
   };
 
   const handleEditEquipment = (equipment: Equipment) => {
@@ -191,29 +207,29 @@ const Dashboard: React.FC = () => {
     setSpecificationFields(specKeys.length > 0 ? specKeys : ['poids', 'puissance', 'capacité']);
     
     setLocalError('');
-    setOpenDialog(true);
+    onOpen();
   };
 
   const handleCloseDialog = () => {
-    setOpenDialog(false);
+    onClose();
     setLocalError('');
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+  const handleInputChange = (e: InputChangeEvent | SelectChangeEvent) => {
     const { name, value } = e.target;
-    if (name && name.startsWith('spec_')) {
+    if (name.startsWith('spec_')) {
       const specName = name.replace('spec_', '');
       setFormData(prev => ({
         ...prev,
         specifications: {
           ...prev.specifications,
-          [specName]: value as string,
+          [specName]: value,
         },
       }));
-    } else if (name) {
+    } else {
       setFormData(prev => ({
         ...prev,
-        [name]: value as string,
+        [name]: value,
       }));
     }
   };
@@ -296,180 +312,149 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Types pour les événements
+  const handleFilterCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterCategory(e.target.value);
+  };
+
+  const handleSortByChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSortBy(e.target.value);
+  };
+
+  // Styles avec types corrects
+  const cardHoverStyle = {
+    transform: 'translateY(-5px)',
+    boxShadow: 'xl',
+  };
+
   if (!user) return null;
 
   return (
     <Container maxWidth="xl" sx={{ pt: 4, px: { xs: 2, sm: 3, md: 4 } }}>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700, color: 'primary.main' }}>
+        <Heading as="h1" size="xl" fontWeight="bold" color="primary.main">
           Tableau de bord
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
+        </Heading>
+        <Text color="text.secondary">
           Gérez vos engins et suivez vos statistiques
-        </Typography>
+        </Text>
       </Box>
 
       {/* Statistiques */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            elevation={3}
-            sx={{
-              p: 3,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              bgcolor: 'primary.light',
-              color: 'primary.contrastText',
-              borderRadius: 3,
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-5px)',
-                boxShadow: (theme) => theme.shadows[8],
-              },
-            }}
+      <Grid templateColumns="repeat(4, 1fr)" gap={4} mb={4}>
+        <GridItem colSpan={{ base: 12, sm: 6, md: 3 }}>
+          <Card
+            p={3}
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            bg="primary.100"
+            color="primary.700"
+            borderRadius="lg"
+            transition="all 0.3s"
+            _hover={cardHoverStyle}
           >
-            <InventoryIcon sx={{ fontSize: 40, mb: 1 }} />
-            <Typography variant="h4" sx={{ fontWeight: 700 }}>{stats.totalEquipment}</Typography>
-            <Typography variant="body2">Total des engins</Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            elevation={3}
-            sx={{
-              p: 3,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              bgcolor: 'success.light',
-              color: 'success.contrastText',
-              borderRadius: 3,
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-5px)',
-                boxShadow: (theme) => theme.shadows[8],
-              },
-            }}
+            <Box mb={2}>
+              <FaBox size={40} />
+            </Box>
+            <Text fontSize="2xl" fontWeight="bold">{stats.totalEquipment}</Text>
+            <Text fontSize="sm">Total des engins</Text>
+          </Card>
+        </GridItem>
+        <GridItem colSpan={{ base: 12, sm: 6, md: 3 }}>
+          <Card
+            p={3}
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            bg="green.100"
+            color="green.700"
+            borderRadius="lg"
+            transition="all 0.3s"
+            _hover={cardHoverStyle}
           >
-            <CheckCircleIcon sx={{ fontSize: 40, mb: 1 }} />
-            <Typography variant="h4" sx={{ fontWeight: 700 }}>{stats.availableEquipment}</Typography>
-            <Typography variant="body2">Engins disponibles</Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            elevation={3}
-            sx={{
-              p: 3,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              bgcolor: 'info.light',
-              color: 'info.contrastText',
-              borderRadius: 3,
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-5px)',
-                boxShadow: (theme) => theme.shadows[8],
-              },
-            }}
+            <Box mb={2}>
+              <FaCheckCircle size={40} />
+            </Box>
+            <Text fontSize="2xl" fontWeight="bold">{stats.availableEquipment}</Text>
+            <Text fontSize="sm">Engins disponibles</Text>
+          </Card>
+        </GridItem>
+        <GridItem colSpan={{ base: 12, sm: 6, md: 3 }}>
+          <Card
+            p={3}
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            bg="blue.100"
+            color="blue.700"
+            borderRadius="lg"
+            transition="all 0.3s"
+            _hover={cardHoverStyle}
           >
-            <EuroIcon sx={{ fontSize: 40, mb: 1 }} />
-            <Typography variant="h4" sx={{ fontWeight: 700 }}>{stats.totalValue.toLocaleString()}€</Typography>
-            <Typography variant="body2">Valeur totale</Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper
-            elevation={3}
-            sx={{
-              p: 3,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              bgcolor: 'warning.light',
-              color: 'warning.contrastText',
-              borderRadius: 3,
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-              '&:hover': {
-                transform: 'translateY(-5px)',
-                boxShadow: (theme) => theme.shadows[8],
-              },
-            }}
+            <Box mb={2}>
+              <FaEuroSign size={40} />
+            </Box>
+            <Text fontSize="2xl" fontWeight="bold">{stats.totalValue.toLocaleString()}€</Text>
+            <Text fontSize="sm">Valeur totale</Text>
+          </Card>
+        </GridItem>
+        <GridItem colSpan={{ base: 12, sm: 6, md: 3 }}>
+          <Card
+            p={3}
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            bg="orange.100"
+            color="orange.700"
+            borderRadius="lg"
+            transition="all 0.3s"
+            _hover={cardHoverStyle}
           >
-            <TrendingUpIcon sx={{ fontSize: 40, mb: 1 }} />
-            <Typography variant="h4" sx={{ fontWeight: 700 }}>{stats.averagePrice.toLocaleString()}€</Typography>
-            <Typography variant="body2">Prix moyen/jour</Typography>
-          </Paper>
-        </Grid>
+            <Box mb={2}>
+              <FaChartLine size={40} />
+            </Box>
+            <Text fontSize="2xl" fontWeight="bold">{stats.averagePrice.toLocaleString()}€</Text>
+            <Text fontSize="sm">Prix moyen/jour</Text>
+          </Card>
+        </GridItem>
       </Grid>
 
       {/* Filtres et tri */}
-      <Paper 
-        elevation={2} 
-        sx={{ 
-          mb: 4, 
-          p: 3, 
-          borderRadius: 3,
-          display: 'flex', 
-          gap: 2, 
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          bgcolor: 'background.paper',
-        }}
-      >
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel>Catégorie</InputLabel>
-          <Select
-            value={filterCategory}
-            label="Catégorie"
-            onChange={(e) => setFilterCategory(e.target.value)}
-            sx={{ borderRadius: 2 }}
+      <Card p={4} mb={4} borderRadius="lg">
+        <Stack direction={{ base: "column", md: "row" }} spacing={4} align="center">
+          <FormControl maxW="200px">
+            <FormLabel>Catégorie</FormLabel>
+            <Select value={filterCategory} onChange={handleFilterCategoryChange}>
+              <option value="">Toutes</option>
+              {categories.map((cat) => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
+                </option>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl maxW="200px">
+            <FormLabel>Trier par</FormLabel>
+            <Select value={sortBy} onChange={handleSortByChange}>
+              <option value="name">Nom</option>
+              <option value="price">Prix</option>
+              <option value="category">Catégorie</option>
+            </Select>
+          </FormControl>
+          <Button
+            leftIcon={<FaPlus />}
+            onClick={handleAddEquipment}
+            colorScheme="blue"
+            ml={{ base: 0, md: "auto" }}
           >
-            <MenuItem value="">Toutes</MenuItem>
-            {categories.map((cat) => (
-              <MenuItem key={cat.value} value={cat.value}>
-                {cat.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel>Trier par</InputLabel>
-          <Select
-            value={sortBy}
-            label="Trier par"
-            onChange={(e) => setSortBy(e.target.value)}
-            sx={{ borderRadius: 2 }}
-          >
-            <MenuItem value="name">Nom</MenuItem>
-            <MenuItem value="price">Prix</MenuItem>
-            <MenuItem value="category">Catégorie</MenuItem>
-          </Select>
-        </FormControl>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAddEquipment}
-          sx={{ 
-            ml: 'auto',
-            borderRadius: 2,
-            px: 3,
-            py: 1,
-            fontWeight: 600,
-            boxShadow: 3,
-            '&:hover': {
-              boxShadow: 6,
-            }
-          }}
-        >
-          Ajouter un engin
-        </Button>
-      </Paper>
+            Ajouter un engin
+          </Button>
+        </Stack>
+      </Card>
 
       {/* Liste des engins */}
-      <Grid container spacing={3}>
+      <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" }} gap={4}>
         {equipment
           .filter(e => !filterCategory || e.category === filterCategory)
           .sort((a, b) => {
@@ -483,315 +468,235 @@ const Dashboard: React.FC = () => {
             }
           })
           .map((item) => (
-            <Grid item key={item.id} xs={12} sm={6} md={4}>
-              <Card
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: (theme) => theme.shadows[8],
-                  },
-                  borderRadius: 3,
-                  overflow: 'hidden',
-                  boxShadow: 3,
-                  maxWidth: 300,
-                  mx: 'auto',
-                }}
-              >
-                <Box sx={{ position: 'relative', height: 150, width: '100%' }}>
-                  <CardMedia
-                    component="img"
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                    image={item.image || 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'}
-                    alt={item.name}
-                  />
+            <Card
+              key={item.id}
+              maxW="sm"
+              overflow="hidden"
+              transition="all 0.3s"
+              _hover={cardHoverStyle}
+            >
+              <Box position="relative" height="150px">
+                <Image
+                  src={item.image || 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'}
+                  alt={item.name}
+                  objectFit="cover"
+                  w="100%"
+                  h="100%"
+                />
+                <Box
+                  position="absolute"
+                  top={4}
+                  right={4}
+                  zIndex={1}
+                  display="flex"
+                  alignItems="center"
+                  gap={2}
+                  backdropFilter="blur(8px)"
+                  bg="whiteAlpha.800"
+                  borderRadius="xl"
+                  px={3}
+                  py={2}
+                >
                   <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 16,
-                      right: 16,
-                      zIndex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      backdropFilter: 'blur(8px)',
-                      backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                      borderRadius: 3,
-                      px: 2,
-                      py: 1,
-                      boxShadow: 2,
-                    }}
+                    w={2}
+                    h={2}
+                    borderRadius="full"
+                    bg={item.isAvailable ? "green.500" : "red.500"}
+                    boxShadow={`0 0 8px ${item.isAvailable ? "green.500" : "red.500"}`}
+                  />
+                  <Text
+                    fontSize="xs"
+                    fontWeight="semibold"
+                    color={item.isAvailable ? "green.700" : "red.700"}
+                    textTransform="uppercase"
+                    letterSpacing="wider"
                   >
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        bgcolor: item.isAvailable ? 'success.main' : 'error.main',
-                        boxShadow: `0 0 8px ${item.isAvailable ? 'success.main' : 'error.main'}`,
-                      }}
-                    />
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 600,
-                        color: item.isAvailable ? 'success.dark' : 'error.dark',
-                        textTransform: 'uppercase',
-                        letterSpacing: 1,
-                        fontSize: '0.75rem',
-                      }}
-                    >
-                      {item.isAvailable ? 'Disponible' : 'Non disponible'}
-                    </Typography>
-                  </Box>
+                    {item.isAvailable ? 'Disponible' : 'Non disponible'}
+                  </Text>
                 </Box>
-                <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                    <Typography variant="h6" component="h2" sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
-                      {item.name}
-                    </Typography>
-                  </Box>
-                  <Typography color="text.secondary" gutterBottom sx={{ mb: 2, fontSize: '0.9rem' }}>
+              </Box>
+              <CardBody>
+                <Stack spacing={3}>
+                  <Heading size="md">{item.name}</Heading>
+                  <Text color="gray.600" noOfLines={2}>
                     {item.description}
-                  </Typography>
-                  <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                    <Chip
-                      icon={<CategoryIcon />}
-                      label={categories.find(c => c.value === item.category)?.label || item.category}
-                      size="small"
-                      sx={{ borderRadius: 2 }}
-                    />
-                    <Chip
-                      icon={<EuroIcon />}
-                      label={`${item.price}€/jour`}
-                      size="small"
-                      sx={{ borderRadius: 2 }}
-                    />
+                  </Text>
+                  <Stack direction="row" spacing={2}>
+                    <HStack spacing={1}>
+                      <FaList />
+                      <Tag>
+                        {categories.find(c => c.value === item.category)?.label || item.category}
+                      </Tag>
+                    </HStack>
+                    <HStack spacing={1}>
+                      <FaEuroSign />
+                      <Tag>
+                        {`${item.price}€/jour`}
+                      </Tag>
+                    </HStack>
                   </Stack>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  <Stack direction="row" flexWrap="wrap" gap={2}>
                     {Object.entries(item.specifications).slice(0, 3).map(([key, value]) => (
-                      <Chip
-                        key={key}
-                        label={`${key}: ${value}`}
-                        size="small"
-                        variant="outlined"
-                        sx={{ borderRadius: 2 }}
-                      />
+                      <Tag key={key} variant="outline">
+                        {`${key}: ${value}`}
+                      </Tag>
                     ))}
-                  </Box>
-                </CardContent>
-                <CardActions sx={{ 
-                  p: 2, 
-                  pt: 0,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 1
-                }}>
-                  <Button
-                    size="small"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleEditEquipment(item)}
-                    sx={{ 
-                      borderRadius: 2,
-                      textTransform: 'none',
-                      fontWeight: 500,
-                      px: 2,
-                      py: 1,
-                      bgcolor: 'primary.light',
-                      color: 'primary.contrastText',
-                      '&:hover': {
-                        bgcolor: 'primary.main',
-                        transform: 'translateY(-2px)',
-                        boxShadow: 2
-                      },
-                      transition: 'all 0.2s ease-in-out'
-                    }}
-                  >
-                    Modifier
-                  </Button>
-                  <Button
-                    size="small"
-                    startIcon={<DeleteIcon />}
-                    onClick={() => handleDeleteEquipment(item.id)}
-                    sx={{ 
-                      borderRadius: 2,
-                      textTransform: 'none',
-                      fontWeight: 500,
-                      px: 2,
-                      py: 1,
-                      bgcolor: 'error.light',
-                      color: 'error.contrastText',
-                      '&:hover': {
-                        bgcolor: 'error.main',
-                        transform: 'translateY(-2px)',
-                        boxShadow: 2
-                      },
-                      transition: 'all 0.2s ease-in-out'
-                    }}
-                  >
-                    Supprimer
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
+                  </Stack>
+                </Stack>
+              </CardBody>
+              <CardFooter
+                justify="space-between"
+                flexWrap="wrap"
+                gap={2}
+                borderTop="1px"
+                borderColor="gray.200"
+                p={4}
+              >
+                <Button
+                  leftIcon={<FaEdit />}
+                  onClick={() => handleEditEquipment(item)}
+                  colorScheme="blue"
+                  variant="ghost"
+                >
+                  Modifier
+                </Button>
+                <Button
+                  leftIcon={<FaTrash />}
+                  onClick={() => handleDeleteEquipment(item.id)}
+                  colorScheme="red"
+                  variant="ghost"
+                >
+                  Supprimer
+                </Button>
+              </CardFooter>
+            </Card>
           ))}
       </Grid>
 
-      {/* Dialog pour ajouter/modifier un engin */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {selectedEquipment ? 'Modifier l\'engin' : 'Ajouter un engin'}
-        </DialogTitle>
-        <DialogContent>
-          {localError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {localError}
-            </Alert>
-          )}
-          <Box sx={{ flexGrow: 1, mt: 1 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box>
-                <TextField
+      {/* Modal pour ajouter/modifier un engin */}
+      <Modal isOpen={isOpen} onClose={handleCloseDialog} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            {selectedEquipment ? 'Modifier l\'engin' : 'Ajouter un engin'}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {localError && (
+              <Alert status="error" mb={4}>
+                <AlertIcon />
+                {localError}
+              </Alert>
+            )}
+            <Stack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel>Nom de l'engin</FormLabel>
+                <Input
                   name="name"
-                  label="Nom de l'engin"
-                  fullWidth
                   value={formData.name}
                   onChange={handleInputChange}
-                  required
                 />
-              </Box>
-              <Box>
-                <TextField
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Description</FormLabel>
+                <Input
                   name="description"
-                  label="Description"
-                  fullWidth
-                  multiline
-                  rows={4}
                   value={formData.description}
                   onChange={handleInputChange}
-                  required
+                  as="textarea"
+                  minH="100px"
                 />
-              </Box>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Box sx={{ flex: 1 }}>
-                  <TextField
+              </FormControl>
+              <Stack direction={{ base: "column", sm: "row" }} spacing={4}>
+                <FormControl isRequired>
+                  <FormLabel>Prix par jour (€)</FormLabel>
+                  <Input
                     name="price"
-                    label="Prix par jour (€)"
                     type="number"
-                    fullWidth
                     value={formData.price}
                     onChange={handleInputChange}
-                    required
-                    InputProps={{
-                      inputProps: { min: 0 }
-                    }}
+                    min={0}
                   />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <TextField
-                    select
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Catégorie</FormLabel>
+                  <Select
                     name="category"
-                    label="Catégorie"
-                    fullWidth
                     value={formData.category}
                     onChange={handleInputChange}
-                    required
-                    SelectProps={{
-                      native: false,
-                    }}
                   >
-                    <MenuItem value="" disabled>
-                      Sélectionnez une catégorie
-                    </MenuItem>
+                    <option value="" disabled>Sélectionnez une catégorie</option>
                     {categories.map((category) => (
-                      <MenuItem key={category.value} value={category.value}>
+                      <option key={category.value} value={category.value}>
                         {category.label}
-                      </MenuItem>
+                      </option>
                     ))}
-                  </TextField>
-                </Box>
-              </Box>
-              <Box>
-                <TextField
+                  </Select>
+                </FormControl>
+              </Stack>
+              <FormControl>
+                <FormLabel>URL de l'image</FormLabel>
+                <Input
                   name="image"
-                  label="URL de l'image"
-                  fullWidth
                   value={formData.image}
                   onChange={handleInputChange}
                   placeholder="https://example.com/image.jpg"
                 />
-              </Box>
-              
+              </FormControl>
               <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="h6">Spécifications techniques</Typography>
-                  <Button 
-                    size="small" 
-                    onClick={() => setOpenDialog(true)}
-                    sx={{ display: 'none' }}
-                  >
-                    Ajouter un champ
-                  </Button>
-                </Box>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                <Heading size="sm" mb={2}>Spécifications techniques</Heading>
+                <Stack direction="row" wrap="wrap" spacing={2} mb={4}>
                   {availableSpecFields.map((field) => (
-                    <Chip
+                    <Tag
                       key={field.key}
-                      label={field.label}
+                      cursor="pointer"
                       onClick={() => handleAddSpecField(field.key)}
-                      color={specificationFields.includes(field.key) ? 'primary' : 'default'}
-                      variant={specificationFields.includes(field.key) ? 'filled' : 'outlined'}
-                    />
+                      colorScheme={specificationFields.includes(field.key) ? "blue" : "gray"}
+                      variant={specificationFields.includes(field.key) ? "solid" : "outline"}
+                    >
+                      {field.label}
+                    </Tag>
                   ))}
-                </Box>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                </Stack>
+                <Grid templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }} gap={4}>
                   {specificationFields.map((fieldKey) => {
                     const field = availableSpecFields.find(f => f.key === fieldKey);
                     return (
-                      <Box key={fieldKey} sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)' } }}>
-                        <TextField
-                          name={`spec_${fieldKey}`}
-                          label={field?.label || fieldKey}
-                          fullWidth
-                          value={formData.specifications[fieldKey] || ''}
-                          onChange={handleInputChange}
-                          InputProps={{
-                            endAdornment: (
-                              <IconButton 
-                                size="small" 
-                                onClick={() => handleRemoveSpecField(fieldKey)}
-                                sx={{ mr: -1 }}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            ),
-                          }}
-                        />
-                      </Box>
+                      <FormControl key={fieldKey}>
+                        <FormLabel>{field?.label || fieldKey}</FormLabel>
+                        <InputGroup>
+                          <Input
+                            name={`spec_${fieldKey}`}
+                            value={formData.specifications[fieldKey] || ''}
+                            onChange={handleInputChange}
+                          />
+                          <InputRightElement>
+                            <IconButton
+                              aria-label="Supprimer"
+                              icon={<FaTrash />}
+                              size="sm"
+                              onClick={() => handleRemoveSpecField(fieldKey)}
+                              variant="ghost"
+                            />
+                          </InputRightElement>
+                        </InputGroup>
+                      </FormControl>
                     );
                   })}
-                </Box>
+                </Grid>
               </Box>
-            </Box>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Annuler</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {selectedEquipment ? 'Modifier' : 'Ajouter'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+            </Stack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={handleCloseDialog}>
+              Annuler
+            </Button>
+            <Button colorScheme="blue" onClick={handleSubmit}>
+              {selectedEquipment ? 'Modifier' : 'Ajouter'}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Container>
   );
 };

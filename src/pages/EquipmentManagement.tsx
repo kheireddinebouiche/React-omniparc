@@ -3,35 +3,38 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Container,
-  Typography,
-  Button,
   Box,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  IconButton,
+  Heading,
+  Button,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  Input,
   Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  MenuItem,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  IconButton,
   FormControl,
-  InputLabel,
+  FormLabel,
   Select,
-  InputAdornment,
   Divider,
-  SelectChangeEvent,
-} from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-} from '@mui/icons-material';
+  Stack,
+  Text,
+  useDisclosure,
+  VStack,
+  HStack,
+  InputGroup,
+  InputLeftElement,
+  InputRightElement,
+} from '@chakra-ui/react';
+import { AddIcon, EditIcon, DeleteIcon } from '@chakra-ui/icons';
 import { RootState, AppDispatch } from '../store';
 import { EquipmentState } from '../store/slices/equipmentSlice';
 import { addEquipment, updateEquipment, deleteEquipment } from '../store/slices/equipmentSlice';
@@ -51,7 +54,7 @@ const categories = [
 const EquipmentManagement = () => {
   const dispatch = useDispatch<AppDispatch>();
   const equipment = useSelector((state: RootState) => (state.equipment as EquipmentState).items);
-  const [open, setOpen] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const [formData, setFormData] = useState<Partial<Equipment>>({
     name: '',
     description: '',
@@ -67,10 +70,7 @@ const EquipmentManagement = () => {
     },
   });
 
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<string>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (name) {
       setFormData(prev => ({
@@ -97,7 +97,7 @@ const EquipmentManagement = () => {
     } else {
       dispatch(addEquipment(formData as Equipment));
     }
-    handleClose();
+    onClose();
   };
 
   const handleDelete = (id: string) => {
@@ -105,202 +105,205 @@ const EquipmentManagement = () => {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ my: 4 }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <Box>
-            <Typography variant="h4" component="h1" gutterBottom>
-              Gestion des équipements
-            </Typography>
-          </Box>
-          <Box>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleOpen}
-              startIcon={<AddIcon />}
-            >
-              Ajouter un équipement
-            </Button>
-          </Box>
-          <Box>
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Nom</TableCell>
-                    <TableCell>Catégorie</TableCell>
-                    <TableCell>Prix</TableCell>
-                    <TableCell>Spécifications</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {equipment.map((item: Equipment) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.name}</TableCell>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell>{item.price} €/jour</TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          Poids: {item.specifications.poids}
-                        </Typography>
-                        <Typography variant="body2">
-                          Hauteur: {item.specifications.hauteur}
-                        </Typography>
-                        <Typography variant="body2">
-                          Capacité: {item.specifications.capacite}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <IconButton onClick={() => handleDelete(item.id)} color="error">
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
+    <Container maxW="container.xl" py={8}>
+      <VStack spacing={6} align="stretch">
+        <Box>
+          <Heading as="h1" size="xl" mb={4}>
+            Gestion des équipements
+          </Heading>
         </Box>
-      </Box>
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {formData.id ? 'Modifier l\'équipement' : 'Ajouter un équipement'}
-        </DialogTitle>
-        <form onSubmit={handleSubmit}>
-          <DialogContent>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-              <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
-                <TextField
-                  fullWidth
-                  label="Nom"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                />
-              </Box>
-              <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
-                <FormControl fullWidth required>
-                  <InputLabel>Catégorie</InputLabel>
+        <Box>
+          <Button
+            colorScheme="blue"
+            leftIcon={<AddIcon />}
+            onClick={onOpen}
+          >
+            Ajouter un équipement
+          </Button>
+        </Box>
+        <Box overflowX="auto">
+          <Table variant="simple">
+            <Thead>
+              <Tr>
+                <Th>Nom</Th>
+                <Th>Catégorie</Th>
+                <Th>Prix</Th>
+                <Th>Spécifications</Th>
+                <Th>Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {equipment.map((item: Equipment) => (
+                <Tr key={item.id}>
+                  <Td>{item.name}</Td>
+                  <Td>{item.category}</Td>
+                  <Td>{item.price} €/jour</Td>
+                  <Td>
+                    <VStack align="start" spacing={1}>
+                      {Object.entries(item.specifications).map(([key, value]) => (
+                        <HStack key={key} spacing={2}>
+                          <Text fontSize="sm" color="gray.500" textTransform="capitalize">
+                            {key}:
+                          </Text>
+                          <Text fontSize="sm">
+                            {value}
+                          </Text>
+                        </HStack>
+                      ))}
+                    </VStack>
+                  </Td>
+                  <Td>
+                    <HStack spacing={2}>
+                      <IconButton
+                        aria-label="Modifier"
+                        icon={<EditIcon />}
+                        size="sm"
+                        colorScheme="blue"
+                        onClick={() => {
+                          setFormData(item);
+                          onOpen();
+                        }}
+                      />
+                      <IconButton
+                        aria-label="Supprimer"
+                        icon={<DeleteIcon />}
+                        size="sm"
+                        colorScheme="red"
+                        onClick={() => handleDelete(item.id)}
+                      />
+                    </HStack>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
+      </VStack>
+
+      <Modal isOpen={isOpen} onClose={onClose} size="xl">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            {formData.id ? 'Modifier l\'équipement' : 'Ajouter un équipement'}
+          </ModalHeader>
+          <ModalCloseButton />
+          <form onSubmit={handleSubmit}>
+            <ModalBody>
+              <VStack spacing={4}>
+                <FormControl isRequired>
+                  <FormLabel>Nom</FormLabel>
+                  <Input
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Catégorie</FormLabel>
                   <Select
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    label="Catégorie"
                   >
+                    <option value="">Sélectionner une catégorie</option>
                     {categories.map((category) => (
-                      <MenuItem key={category} value={category}>
+                      <option key={category} value={category}>
                         {category}
-                      </MenuItem>
+                      </option>
                     ))}
                   </Select>
                 </FormControl>
-              </Box>
-              <Box sx={{ width: '100%' }}>
-                <TextField
-                  fullWidth
-                  label="Description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  multiline
-                  rows={4}
-                  required
-                />
-              </Box>
-              <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
-                <TextField
-                  fullWidth
-                  label="Prix par jour"
-                  name="price"
-                  type="number"
-                  value={formData.price}
-                  onChange={handleChange}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">€</InputAdornment>,
-                  }}
-                  required
-                />
-              </Box>
-              <Box sx={{ width: '100%' }}>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Spécifications techniques
-                </Typography>
-              </Box>
-              <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
-                <TextField
-                  fullWidth
-                  label="Poids"
-                  value={formData.specifications?.poids}
-                  onChange={(e) => handleSpecificationChange('poids', e.target.value)}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">kg</InputAdornment>,
-                  }}
-                />
-              </Box>
-              <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
-                <TextField
-                  fullWidth
-                  label="Hauteur"
-                  value={formData.specifications?.hauteur}
-                  onChange={(e) => handleSpecificationChange('hauteur', e.target.value)}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">m</InputAdornment>,
-                  }}
-                />
-              </Box>
-              <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
-                <TextField
-                  fullWidth
-                  label="Capacité"
-                  value={formData.specifications?.capacite}
-                  onChange={(e) => handleSpecificationChange('capacite', e.target.value)}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">m³</InputAdornment>,
-                  }}
-                />
-              </Box>
-              <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
-                <TextField
-                  fullWidth
-                  label="Année de fabrication"
-                  value={formData.specifications?.annee}
-                  onChange={(e) => handleSpecificationChange('annee', e.target.value)}
-                />
-              </Box>
-              <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
-                <TextField
-                  fullWidth
-                  label="Type de moteur"
-                  value={formData.specifications?.moteur}
-                  onChange={(e) => handleSpecificationChange('moteur', e.target.value)}
-                />
-              </Box>
-              <Box sx={{ width: { xs: '100%', sm: '48%' } }}>
-                <TextField
-                  fullWidth
-                  label="Puissance"
-                  value={formData.specifications?.puissance}
-                  onChange={(e) => handleSpecificationChange('puissance', e.target.value)}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">ch</InputAdornment>,
-                  }}
-                />
-              </Box>
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Annuler</Button>
-            <Button type="submit" variant="contained" color="primary">
-              {formData.id ? 'Modifier' : 'Ajouter'}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+                <FormControl isRequired>
+                  <FormLabel>Description</FormLabel>
+                  <Input
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+                <FormControl isRequired>
+                  <FormLabel>Prix par jour</FormLabel>
+                  <InputGroup>
+                    <InputLeftElement pointerEvents="none">
+                      €
+                    </InputLeftElement>
+                    <Input
+                      name="price"
+                      type="number"
+                      value={formData.price}
+                      onChange={handleChange}
+                    />
+                  </InputGroup>
+                </FormControl>
+                <Divider />
+                <Heading size="md">Spécifications techniques</Heading>
+                <FormControl>
+                  <FormLabel>Poids</FormLabel>
+                  <InputGroup>
+                    <Input
+                      value={formData.specifications?.poids}
+                      onChange={(e) => handleSpecificationChange('poids', e.target.value)}
+                    />
+                    <InputRightElement>kg</InputRightElement>
+                  </InputGroup>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Hauteur</FormLabel>
+                  <InputGroup>
+                    <Input
+                      value={formData.specifications?.hauteur}
+                      onChange={(e) => handleSpecificationChange('hauteur', e.target.value)}
+                    />
+                    <InputRightElement>m</InputRightElement>
+                  </InputGroup>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Capacité</FormLabel>
+                  <InputGroup>
+                    <Input
+                      value={formData.specifications?.capacite}
+                      onChange={(e) => handleSpecificationChange('capacite', e.target.value)}
+                    />
+                    <InputRightElement>m³</InputRightElement>
+                  </InputGroup>
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Année de fabrication</FormLabel>
+                  <Input
+                    value={formData.specifications?.annee}
+                    onChange={(e) => handleSpecificationChange('annee', e.target.value)}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Type de moteur</FormLabel>
+                  <Input
+                    value={formData.specifications?.moteur}
+                    onChange={(e) => handleSpecificationChange('moteur', e.target.value)}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>Puissance</FormLabel>
+                  <InputGroup>
+                    <Input
+                      value={formData.specifications?.puissance}
+                      onChange={(e) => handleSpecificationChange('puissance', e.target.value)}
+                    />
+                    <InputRightElement>ch</InputRightElement>
+                  </InputGroup>
+                </FormControl>
+              </VStack>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="ghost" mr={3} onClick={onClose}>
+                Annuler
+              </Button>
+              <Button colorScheme="blue" type="submit">
+                {formData.id ? 'Modifier' : 'Ajouter'}
+              </Button>
+            </ModalFooter>
+          </form>
+        </ModalContent>
+      </Modal>
     </Container>
   );
 };

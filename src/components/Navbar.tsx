@@ -1,94 +1,143 @@
-import { AppBar, Toolbar, Typography, Button, Box, Menu, MenuItem, IconButton } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Flex,
+  HStack,
+  IconButton,
+  Button,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  useDisclosure,
+  useColorModeValue,
+  Stack,
+  Avatar,
+} from '@chakra-ui/react';
+import { HamburgerIcon, CloseIcon } from '@chakra-ui/icons';
+import { Link as RouterLink } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '../store';
 import { logout } from '../store/slices/authSlice';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import { useState } from 'react';
+import { RootState, AppDispatch } from '../store';
+import { UserRole } from '../types';
+
+const Links = [
+  { name: 'Accueil', path: '/' },
+  { name: 'Équipements', path: '/equipments' },
+  { name: 'À propos', path: '/about' },
+];
+
+const NavLink = ({ children, to }: { children: React.ReactNode; to: string }) => (
+  <RouterLink to={to}>
+    <Box
+      px={2}
+      py={1}
+      rounded={'md'}
+      _hover={{
+        textDecoration: 'none',
+        bg: useColorModeValue('gray.200', 'gray.700'),
+      }}
+    >
+      {children}
+    </Box>
+  </RouterLink>
+);
 
 const Navbar = () => {
-  const navigate = useNavigate();
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
-  const isAuthenticated = !!user;
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/');
-    handleClose();
-  };
-
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    handleClose();
   };
 
   return (
-    <AppBar position="static" sx={{ borderRadius: 0 }}>
-      <Toolbar>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          Location d'Engins
-        </Typography>
-        <Box>
-          <Button color="inherit" onClick={() => navigate('/equipment')}>
-            Équipements
-          </Button>
-          {isAuthenticated ? (
-            <>
-              <IconButton
-                size="large"
-                aria-label="account of current user"
-                aria-controls="menu-appbar"
-                aria-haspopup="true"
-                onClick={handleMenu}
-                color="inherit"
+    <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
+      <Flex h={16} alignItems={'center'} justifyContent={'space-between'}>
+        <IconButton
+          size={'md'}
+          icon={isOpen ? <CloseIcon /> : <HamburgerIcon />}
+          aria-label={'Open Menu'}
+          display={{ md: 'none' }}
+          onClick={isOpen ? onClose : onOpen}
+        />
+        <HStack spacing={8} alignItems={'center'}>
+          <Box fontWeight="bold">Location Voiture</Box>
+          <HStack as={'nav'} spacing={4} display={{ base: 'none', md: 'flex' }}>
+            {Links.map((link) => (
+              <NavLink key={link.path} to={link.path}>
+                {link.name}
+              </NavLink>
+            ))}
+          </HStack>
+        </HStack>
+        <Flex alignItems={'center'}>
+          {user ? (
+            <Menu>
+              <MenuButton
+                as={Button}
+                rounded={'full'}
+                variant={'link'}
+                cursor={'pointer'}
+                minW={0}
               >
-                <AccountCircleIcon />
-              </IconButton>
-              <Menu
-                id="menu-appbar"
-                anchorEl={anchorEl}
-                anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: 'right',
-                }}
-                keepMounted
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
-                }}
-                open={Boolean(anchorEl)}
-                onClose={handleClose}
-              >
-                <MenuItem onClick={() => handleNavigation('/dashboard')}>Tableau de bord</MenuItem>
-                <MenuItem onClick={() => handleNavigation('/profile')}>
-                  {user ? `${user.firstName} ${user.lastName}` : 'Profil'}
-                </MenuItem>
+                <Avatar size={'sm'} />
+              </MenuButton>
+              <MenuList>
+                <MenuItem as={RouterLink} to="/profile">Profil</MenuItem>
+                {user.role === UserRole.ADMIN && (
+                  <MenuItem as={RouterLink} to="/admin">Dashboard</MenuItem>
+                )}
                 <MenuItem onClick={handleLogout}>Déconnexion</MenuItem>
-              </Menu>
-            </>
+              </MenuList>
+            </Menu>
           ) : (
-            <>
-              <Button color="inherit" onClick={() => navigate('/login')}>
+            <Stack
+              flex={{ base: 1, md: 0 }}
+              justify={'flex-end'}
+              direction={'row'}
+              spacing={6}
+            >
+              <Button
+                as={RouterLink}
+                to="/login"
+                fontSize={'sm'}
+                fontWeight={400}
+                variant={'link'}
+              >
                 Connexion
               </Button>
-              <Button color="inherit" onClick={() => navigate('/register')}>
+              <Button
+                as={RouterLink}
+                to="/register"
+                display={{ base: 'none', md: 'inline-flex' }}
+                fontSize={'sm'}
+                fontWeight={600}
+                color={'white'}
+                bg={'blue.400'}
+                _hover={{
+                  bg: 'blue.300',
+                }}
+              >
                 Inscription
               </Button>
-            </>
+            </Stack>
           )}
+        </Flex>
+      </Flex>
+
+      {isOpen ? (
+        <Box pb={4} display={{ md: 'none' }}>
+          <Stack as={'nav'} spacing={4}>
+            {Links.map((link) => (
+              <NavLink key={link.path} to={link.path}>
+                {link.name}
+              </NavLink>
+            ))}
+          </Stack>
         </Box>
-      </Toolbar>
-    </AppBar>
+      ) : null}
+    </Box>
   );
 };
 

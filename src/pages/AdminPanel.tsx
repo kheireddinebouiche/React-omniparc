@@ -2,35 +2,56 @@ import { useState, useEffect } from 'react';
 import {
   Container,
   Box,
-  Typography,
-  Paper,
+  Text,
+  Heading,
   Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Chip,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
   IconButton,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  Input,
+  Badge,
+  Grid,
+  Card,
+  CardBody,
   Select,
-  MenuItem,
+  FormControl,
+  FormLabel,
   Alert,
-} from '@mui/material';
+  AlertIcon,
+  Progress,
+  Avatar,
+  Tooltip,
+  useDisclosure,
+  VStack,
+  HStack,
+  useColorModeValue,
+} from '@chakra-ui/react';
 import {
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Block as BlockIcon,
-  CheckCircle as CheckCircleIcon,
-} from '@mui/icons-material';
+  FaEdit,
+  FaTrash,
+  FaBan,
+  FaCheckCircle,
+  FaUser,
+  FaBuilding,
+  FaTools,
+  FaUserShield,
+  FaChartLine,
+  FaCalendarAlt,
+  FaExclamationTriangle,
+  FaUsers,
+  FaEnvelope,
+} from 'react-icons/fa';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { UserRole } from '../types';
@@ -51,7 +72,7 @@ const AdminPanel = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [openDialog, setOpenDialog] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,7 +118,7 @@ const AdminPanel = () => {
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
-    setOpenDialog(true);
+    onOpen();
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -121,7 +142,7 @@ const AdminPanel = () => {
   };
 
   const handleCloseDialog = () => {
-    setOpenDialog(false);
+    onClose();
     setSelectedUser(null);
     setError('');
   };
@@ -138,6 +159,23 @@ const AdminPanel = () => {
     }
   };
 
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  };
+
+  const handleFilterRoleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterRole(event.target.value as UserRole | 'ALL');
+  };
+
+  const handleRoleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    if (selectedUser) {
+      setSelectedUser({
+        ...selectedUser,
+        role: event.target.value as UserRole
+      });
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -151,8 +189,9 @@ const AdminPanel = () => {
 
   if (user?.role !== UserRole.ADMIN) {
     return (
-      <Container maxWidth="xl" sx={{ pt: 4, px: { xs: 2, sm: 3, md: 4 } }}>
-        <Alert severity="error">
+      <Container maxW="xl" py={4} px={{ base: 2, sm: 3, md: 4 }}>
+        <Alert status="error">
+          <AlertIcon />
           Accès non autorisé. Vous devez être administrateur pour accéder à cette page.
         </Alert>
       </Container>
@@ -160,191 +199,220 @@ const AdminPanel = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ pt: 4, px: { xs: 2, sm: 3, md: 4 } }}>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700, color: 'primary.main' }}>
+    <Container maxW="xl" py={4} px={{ base: 2, sm: 3, md: 4 }}>
+      <Box mb={4}>
+        <Heading as="h1" size="xl" mb={2} color="primary.500">
           Administration des utilisateurs
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
+        </Heading>
+        <Text color="gray.600">
           Gérez les comptes utilisateurs et leurs permissions
-        </Typography>
+        </Text>
       </Box>
 
       {/* Filtres et recherche */}
-      <Paper sx={{ mb: 4, p: 3, borderRadius: 3 }}>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <TextField
-            label="Rechercher"
-            variant="outlined"
-            size="small"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            sx={{ minWidth: 200 }}
-          />
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Rôle</InputLabel>
-            <Select<UserRole | 'ALL'>
+      <Card mb={4} p={3} borderRadius="lg">
+        <HStack spacing={2} flexWrap="wrap">
+          <FormControl maxW="200px">
+            <Input
+              placeholder="Rechercher"
+              size="sm"
+              value={searchTerm}
+              onChange={handleSearchChange}
+            />
+          </FormControl>
+          <FormControl maxW="200px">
+            <Select
+              size="sm"
               value={filterRole}
-              label="Rôle"
-              onChange={(e) => setFilterRole(e.target.value as UserRole | 'ALL')}
-              sx={{ minWidth: 200 }}
+              onChange={handleFilterRoleChange}
             >
-              <MenuItem value="ALL">Tous les rôles</MenuItem>
-              <MenuItem value={UserRole.CLIENT}>Client</MenuItem>
-              <MenuItem value={UserRole.PROFESSIONAL}>Professionnel</MenuItem>
-              <MenuItem value={UserRole.BUSINESS}>Entreprise</MenuItem>
+              <option value="ALL">Tous les rôles</option>
+              <option value={UserRole.CLIENT}>Client</option>
+              <option value={UserRole.PROFESSIONAL}>Professionnel</option>
+              <option value={UserRole.BUSINESS}>Entreprise</option>
             </Select>
           </FormControl>
-        </Box>
-      </Paper>
+        </HStack>
+      </Card>
 
       {/* Table des utilisateurs */}
-      <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Nom</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Rôle</TableCell>
-                <TableCell>Statut</TableCell>
-                <TableCell>Date d'inscription</TableCell>
-                <TableCell>Dernière connexion</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
+      <Card borderRadius="lg" overflow="hidden">
+        <Box overflowX="auto">
+          <Table variant="simple">
+            <Thead>
+              <Tr>
+                <Th>Nom</Th>
+                <Th>Email</Th>
+                <Th>Rôle</Th>
+                <Th>Statut</Th>
+                <Th>Date d'inscription</Th>
+                <Th>Dernière connexion</Th>
+                <Th textAlign="right">Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
               {filteredUsers
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{`${user.firstName} ${user.lastName}`}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={user.role}
-                        color={
+                  <Tr key={user.id}>
+                    <Td>{`${user.firstName} ${user.lastName}`}</Td>
+                    <Td>{user.email}</Td>
+                    <Td>
+                      <Badge
+                        colorScheme={
                           user.role === UserRole.ADMIN
-                            ? 'error'
+                            ? 'red'
                             : user.role === UserRole.PROFESSIONAL
-                            ? 'primary'
+                            ? 'blue'
                             : user.role === UserRole.BUSINESS
-                            ? 'secondary'
-                            : 'default'
+                            ? 'purple'
+                            : 'gray'
                         }
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={user.isActive ? 'Actif' : 'Inactif'}
-                        color={user.isActive ? 'success' : 'error'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell>
+                        p={1}
+                        borderRadius="md"
+                      >
+                        {user.role}
+                      </Badge>
+                    </Td>
+                    <Td>
+                      <Badge
+                        colorScheme={user.isActive ? 'green' : 'red'}
+                        p={1}
+                        borderRadius="md"
+                      >
+                        {user.isActive ? 'Actif' : 'Inactif'}
+                      </Badge>
+                    </Td>
+                    <Td>{new Date(user.createdAt).toLocaleDateString()}</Td>
+                    <Td>
                       {user.lastLogin
                         ? new Date(user.lastLogin).toLocaleDateString()
                         : 'Jamais'}
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditUser(user)}
-                        sx={{ color: 'primary.main' }}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleToggleUserStatus(user.id, user.isActive)}
-                        sx={{ color: user.isActive ? 'error.main' : 'success.main' }}
-                      >
-                        {user.isActive ? <BlockIcon /> : <CheckCircleIcon />}
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteUser(user.id)}
-                        sx={{ color: 'error.main' }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
+                    </Td>
+                    <Td textAlign="right">
+                      <HStack spacing={2} justify="flex-end">
+                        <Tooltip label="Modifier">
+                          <IconButton
+                            aria-label="Modifier"
+                            icon={<FaEdit />}
+                            colorScheme="blue"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditUser(user)}
+                          />
+                        </Tooltip>
+                        <Tooltip label={user.isActive ? "Désactiver" : "Activer"}>
+                          <IconButton
+                            aria-label={user.isActive ? "Désactiver" : "Activer"}
+                            icon={user.isActive ? <FaBan /> : <FaCheckCircle />}
+                            colorScheme={user.isActive ? "red" : "green"}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleUserStatus(user.id, user.isActive)}
+                          />
+                        </Tooltip>
+                        <Tooltip label="Supprimer">
+                          <IconButton
+                            aria-label="Supprimer"
+                            icon={<FaTrash />}
+                            colorScheme="red"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteUser(user.id)}
+                          />
+                        </Tooltip>
+                      </HStack>
+                    </Td>
+                  </Tr>
                 ))}
-            </TableBody>
+            </Tbody>
           </Table>
-        </TableContainer>
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={filteredUsers.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
-      </Paper>
-
-      {/* Dialog de modification */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {selectedUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}
-        </DialogTitle>
-        <DialogContent>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-            <TextField
-              label="Email"
-              fullWidth
-              value={selectedUser?.email || ''}
-              disabled
-            />
-            <TextField
-              label="Prénom"
-              fullWidth
-              value={selectedUser?.firstName || ''}
-              disabled
-            />
-            <TextField
-              label="Nom"
-              fullWidth
-              value={selectedUser?.lastName || ''}
-              disabled
-            />
-            <FormControl fullWidth>
-              <InputLabel>Rôle</InputLabel>
-              <Select
-                value={selectedUser?.role || UserRole.CLIENT}
-                label="Rôle"
-                onChange={(e) =>
-                  setSelectedUser(
-                    prev =>
-                      prev
-                        ? { ...prev, role: e.target.value as UserRole }
-                        : null
-                  )
-                }
+        </Box>
+        <Box p={4}>
+          <HStack justify="space-between">
+            <Text fontSize="sm">
+              Affichage de {page * rowsPerPage + 1} à {Math.min((page + 1) * rowsPerPage, filteredUsers.length)} sur {filteredUsers.length} utilisateurs
+            </Text>
+            <HStack>
+              <Button
+                size="sm"
+                onClick={() => setPage(Math.max(0, page - 1))}
+                isDisabled={page === 0}
               >
-                <MenuItem value={UserRole.CLIENT}>Client</MenuItem>
-                <MenuItem value={UserRole.PROFESSIONAL}>Professionnel</MenuItem>
-                <MenuItem value={UserRole.BUSINESS}>Entreprise</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Annuler</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            Enregistrer
-          </Button>
-        </DialogActions>
-      </Dialog>
+                Précédent
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setPage(page + 1)}
+                isDisabled={(page + 1) * rowsPerPage >= filteredUsers.length}
+              >
+                Suivant
+              </Button>
+            </HStack>
+          </HStack>
+        </Box>
+      </Card>
+
+      {/* Modal de modification */}
+      <Modal isOpen={isOpen} onClose={handleCloseDialog} size="md">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            {selectedUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            {error && (
+              <Alert status="error" mb={4}>
+                <AlertIcon />
+                {error}
+              </Alert>
+            )}
+            <VStack spacing={4}>
+              <FormControl>
+                <FormLabel>Email</FormLabel>
+                <Input
+                  value={selectedUser?.email || ''}
+                  isDisabled
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Prénom</FormLabel>
+                <Input
+                  value={selectedUser?.firstName || ''}
+                  isDisabled
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Nom</FormLabel>
+                <Input
+                  value={selectedUser?.lastName || ''}
+                  isDisabled
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Rôle</FormLabel>
+                <Select
+                  value={selectedUser?.role || UserRole.CLIENT}
+                  onChange={handleRoleChange}
+                >
+                  <option value={UserRole.CLIENT}>Client</option>
+                  <option value={UserRole.PROFESSIONAL}>Professionnel</option>
+                  <option value={UserRole.BUSINESS}>Entreprise</option>
+                </Select>
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={handleCloseDialog}>
+              Annuler
+            </Button>
+            <Button colorScheme="blue" onClick={handleSubmit}>
+              Enregistrer
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Container>
   );
 };

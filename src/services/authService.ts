@@ -11,8 +11,6 @@ import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { User, UserRole } from '../types';
 import { serializeFirestoreData } from '../utils/serialization';
-import { store } from '../store';
-import { login, logout as logoutAction } from '../store/slices/authSlice';
 import { deleteUserAndRelatedData } from './userService';
 
 // Configurer la persistance de l'authentification
@@ -28,21 +26,12 @@ onAuthStateChanged(auth, async (firebaseUser) => {
       // Récupérer les données utilisateur depuis Firestore
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       if (userDoc.exists()) {
-        const userData = userDoc.data();
-        // S'assurer que le rôle est en majuscules
-        const normalizedUserData = {
-          ...userData,
-          role: userData.role.toUpperCase() as UserRole
-        };
-        // Mettre à jour le store Redux avec les données utilisateur
-        store.dispatch(login.fulfilled(normalizedUserData as User, '', { email: '', password: '' }));
+        // Les données utilisateur seront traitées dans le composant App
+        // qui écoutera les changements d'état d'authentification
       }
     } catch (error) {
       console.error("Erreur lors de la récupération des données utilisateur:", error);
     }
-  } else {
-    // Déconnecter l'utilisateur dans le store Redux
-    store.dispatch(logoutAction.fulfilled(undefined, ''));
   }
 });
 
@@ -160,9 +149,6 @@ export const deleteAccount = async (): Promise<void> => {
 
     // 2. Supprimer le compte Firebase Auth
     await deleteUser(user);
-
-    // 3. Déconnecter l'utilisateur dans le store Redux
-    store.dispatch(logoutAction.fulfilled(undefined, ''));
   } catch (error: any) {
     console.error('Erreur lors de la suppression du compte:', error);
     throw new Error(error.message);

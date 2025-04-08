@@ -5,31 +5,53 @@ import { AppDispatch, RootState } from '../store';
 import {
   Box,
   Container,
-  Typography,
-  TextField,
+  Heading,
+  Text,
+  Input,
   Button,
-  Card,
-  CardContent,
-  Stepper,
-  Step,
-  StepLabel,
-  CircularProgress,
+  VStack,
+  HStack,
+  SimpleGrid,
+  useColorModeValue,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
   Alert,
-} from '@mui/material';
+  AlertIcon,
+  Spinner,
+  useSteps,
+  Step,
+  StepDescription,
+  StepIcon,
+  StepIndicator,
+  StepNumber,
+  StepSeparator,
+  StepStatus,
+  StepTitle,
+  Stepper,
+  Card,
+  CardBody,
+  Icon,
+} from '@chakra-ui/react';
 import { register, clearError } from '../store/slices/authSlice';
 import { UserRole } from '../types';
-import PersonIcon from '@mui/icons-material/Person';
-import BusinessIcon from '@mui/icons-material/Business';
-import ConstructionIcon from '@mui/icons-material/Construction';
+import { FaUser, FaBuilding, FaTools } from 'react-icons/fa';
 
-const steps = ['Sélection du niveau', 'Informations personnelles'];
+const steps = [
+  { title: 'Sélection du niveau', description: 'Choisissez votre type de compte' },
+  { title: 'Informations personnelles', description: 'Remplissez vos informations' }
+];
 
 const Register = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { loading, error, user } = useSelector((state: RootState) => state.auth);
   const isAuthenticated = !!user;
-  const [activeStep, setActiveStep] = useState(0);
+  const { activeStep, setActiveStep } = useSteps({
+    index: 0,
+    count: steps.length,
+  });
+  
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -37,6 +59,10 @@ const Register = () => {
     password: '',
     role: '' as UserRole,
   });
+
+  const cardBg = useColorModeValue('white', 'gray.800');
+  const cardBorder = useColorModeValue('gray.200', 'gray.700');
+  const selectedBorder = useColorModeValue('primary.500', 'primary.300');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -49,18 +75,18 @@ const Register = () => {
       dispatch(clearError());
       return;
     }
-    setActiveStep((prevStep) => prevStep + 1);
+    setActiveStep(activeStep + 1);
   };
 
   const handleBack = () => {
-    setActiveStep((prevStep) => prevStep - 1);
+    setActiveStep(activeStep - 1);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name as string]: value,
+      [name]: value,
     }));
     if (error) {
       dispatch(clearError());
@@ -76,128 +102,112 @@ const Register = () => {
     switch (step) {
       case 0:
         return (
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h5" gutterBottom textAlign="center">
+          <Box mt={8}>
+            <Heading as="h2" size="lg" textAlign="center" mb={6}>
               Choisissez votre niveau d'accès
-            </Typography>
-            <Box sx={{ 
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(3, 1fr)'
-              },
-              gap: 3,
-              mt: 2
-            }}>
+            </Heading>
+            <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6} mt={4}>
               <Card 
-                sx={{ 
-                  cursor: 'pointer',
-                  border: formData.role === UserRole.CLIENT ? 2 : 0,
-                  borderColor: 'primary.main',
-                  '&:hover': { border: 2, borderColor: 'primary.main' }
-                }}
+                cursor="pointer"
+                borderWidth={formData.role === UserRole.CLIENT ? 2 : 1}
+                borderColor={formData.role === UserRole.CLIENT ? selectedBorder : cardBorder}
+                _hover={{ borderColor: selectedBorder, borderWidth: 2 }}
                 onClick={() => setFormData(prev => ({ ...prev, role: UserRole.CLIENT }))}
               >
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <PersonIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-                  <Typography variant="h6" gutterBottom>
+                <CardBody textAlign="center">
+                  <Icon as={FaUser} boxSize={12} color="primary.500" mb={4} />
+                  <Heading as="h3" size="md" mb={2}>
                     Client
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Pour les particuliers qui souhaitent louer des équipements
-                  </Typography>
-                </CardContent>
+                  </Heading>
+                  <Text color="gray.600">
+                    Je souhaite louer des engins pour mes projets
+                  </Text>
+                </CardBody>
               </Card>
+              
               <Card 
-                sx={{ 
-                  cursor: 'pointer',
-                  border: formData.role === UserRole.PROFESSIONAL ? 2 : 0,
-                  borderColor: 'primary.main',
-                  '&:hover': { border: 2, borderColor: 'primary.main' }
-                }}
+                cursor="pointer"
+                borderWidth={formData.role === UserRole.PROFESSIONAL ? 2 : 1}
+                borderColor={formData.role === UserRole.PROFESSIONAL ? selectedBorder : cardBorder}
+                _hover={{ borderColor: selectedBorder, borderWidth: 2 }}
                 onClick={() => setFormData(prev => ({ ...prev, role: UserRole.PROFESSIONAL }))}
               >
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <ConstructionIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-                  <Typography variant="h6" gutterBottom>
+                <CardBody textAlign="center">
+                  <Icon as={FaTools} boxSize={12} color="primary.500" mb={4} />
+                  <Heading as="h3" size="md" mb={2}>
                     Professionnel
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Pour les professionnels du bâtiment
-                  </Typography>
-                </CardContent>
+                  </Heading>
+                  <Text color="gray.600">
+                    Je souhaite mettre mes engins en location
+                  </Text>
+                </CardBody>
               </Card>
+              
               <Card 
-                sx={{ 
-                  cursor: 'pointer',
-                  border: formData.role === UserRole.BUSINESS ? 2 : 0,
-                  borderColor: 'primary.main',
-                  '&:hover': { border: 2, borderColor: 'primary.main' }
-                }}
+                cursor="pointer"
+                borderWidth={formData.role === UserRole.BUSINESS ? 2 : 1}
+                borderColor={formData.role === UserRole.BUSINESS ? selectedBorder : cardBorder}
+                _hover={{ borderColor: selectedBorder, borderWidth: 2 }}
                 onClick={() => setFormData(prev => ({ ...prev, role: UserRole.BUSINESS }))}
               >
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <BusinessIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-                  <Typography variant="h6" gutterBottom>
+                <CardBody textAlign="center">
+                  <Icon as={FaBuilding} boxSize={12} color="primary.500" mb={4} />
+                  <Heading as="h3" size="md" mb={2}>
                     Entreprise
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Pour les entreprises de location d'équipements
-                  </Typography>
-                </CardContent>
+                  </Heading>
+                  <Text color="gray.600">
+                    Je représente une entreprise de location d'engins
+                  </Text>
+                </CardBody>
               </Card>
-            </Box>
+            </SimpleGrid>
           </Box>
         );
       case 1:
         return (
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 4 }}>
-            <Box sx={{ mt: 4 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                <TextField
-                  required
-                  fullWidth
-                  label="Prénom"
+          <Box as="form" onSubmit={handleSubmit} mt={8}>
+            {error && (
+              <Alert status="error" mb={4}>
+                <AlertIcon />
+                {error}
+              </Alert>
+            )}
+            <VStack spacing={4}>
+              <FormControl isRequired>
+                <FormLabel>Prénom</FormLabel>
+                <Input
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleInputChange}
-                  disabled={loading}
                 />
-                <TextField
-                  required
-                  fullWidth
-                  label="Nom"
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Nom</FormLabel>
+                <Input
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleInputChange}
-                  disabled={loading}
                 />
-              </Box>
-              <Box sx={{ mt: 2 }}>
-                <TextField
-                  required
-                  fullWidth
-                  label="Email"
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Email</FormLabel>
+                <Input
                   name="email"
                   type="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  disabled={loading}
                 />
-              </Box>
-              <Box sx={{ mt: 2 }}>
-                <TextField
-                  required
-                  fullWidth
-                  label="Mot de passe"
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Mot de passe</FormLabel>
+                <Input
                   name="password"
                   type="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  disabled={loading}
                 />
-              </Box>
-            </Box>
+              </FormControl>
+            </VStack>
           </Box>
         );
       default:
@@ -206,46 +216,54 @@ const Register = () => {
   };
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ mt: 8, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Inscription
-        </Typography>
-        <Stepper activeStep={activeStep} sx={{ mt: 4 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-        {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {error}
-          </Alert>
-        )}
-        {renderStepContent(activeStep)}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
-          <Button
-            disabled={activeStep === 0 || loading}
-            onClick={handleBack}
-          >
-            Retour
-          </Button>
-          <Button
-            variant="contained"
-            onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-            disabled={loading}
-          >
-            {loading ? (
-              <CircularProgress size={24} />
-            ) : activeStep === steps.length - 1 ? (
-              'S\'inscrire'
-            ) : (
-              'Suivant'
-            )}
-          </Button>
-        </Box>
+    <Container maxW="md" py={8}>
+      <Box mt={8} mb={4}>
+        <Heading as="h1" size="xl" textAlign="center" mb={4}>
+          Créer un compte
+        </Heading>
+        <Text textAlign="center" color="gray.600">
+          Rejoignez notre communauté de professionnels
+        </Text>
       </Box>
+      
+      <Stepper index={activeStep} colorScheme="primary" mb={8}>
+        {steps.map((step, index) => (
+          <Step key={index}>
+            <StepIndicator>
+              <StepStatus
+                complete={<StepIcon />}
+                incomplete={<StepNumber />}
+                active={<StepNumber />}
+              />
+            </StepIndicator>
+            <Box flexShrink="0">
+              <StepTitle>{step.title}</StepTitle>
+              <StepDescription>{step.description}</StepDescription>
+            </Box>
+            <StepSeparator />
+          </Step>
+        ))}
+      </Stepper>
+      
+      {renderStepContent(activeStep)}
+      
+      <HStack justify="space-between" mt={8}>
+        <Button
+          onClick={handleBack}
+          isDisabled={activeStep === 0}
+          variant="outline"
+        >
+          Retour
+        </Button>
+        <Button
+          onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
+          colorScheme="primary"
+          isLoading={loading}
+          loadingText="Chargement..."
+        >
+          {activeStep === steps.length - 1 ? 'S\'inscrire' : 'Suivant'}
+        </Button>
+      </HStack>
     </Container>
   );
 };
