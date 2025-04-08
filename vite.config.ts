@@ -18,7 +18,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-          ui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
+          ui: ['@chakra-ui/react', '@emotion/react', '@emotion/styled'],
         },
       },
     },
