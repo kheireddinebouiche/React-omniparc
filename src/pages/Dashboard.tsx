@@ -36,6 +36,10 @@ import {
   useMediaQuery,
   ThemeTypings,
   HStack,
+  SimpleGrid,
+  VStack,
+  Divider,
+  useToast
 } from '@chakra-ui/react';
 import {
   FaEdit,
