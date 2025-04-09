@@ -24,6 +24,7 @@ export interface Equipment {
   isAvailable: boolean;
   ownerId: string;
   image?: string;
+  location?: string;
 }
 
 export interface RentalRequest {

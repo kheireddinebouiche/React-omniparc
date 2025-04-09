@@ -45,8 +45,10 @@ function App() {
               ...userData,
               role: userData.role.toUpperCase() as UserRole
             };
+            // Sérialiser les données avant de les dispatcher dans le store Redux
+            const serializedUserData = serializeFirestoreData(normalizedUserData as any) as User;
             // Mettre à jour le store Redux avec les données utilisateur
-            dispatch(login.fulfilled(normalizedUserData as User, '', { email: '', password: '' }));
+            dispatch(login.fulfilled(serializedUserData, '', { email: '', password: '' }));
           }
         } catch (error) {
           console.error("Erreur lors de la récupération des données utilisateur:", error);
@@ -69,6 +71,7 @@ function App() {
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" />} />
         <Route path="/equipment" element={<EquipmentList />} />
+        <Route path="/equipments" element={<Navigate to="/equipment" />} />
         <Route path="/equipment/:id" element={<EquipmentDetails />} />
         <Route
           path="/dashboard"
