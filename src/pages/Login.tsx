@@ -50,7 +50,24 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await dispatch(login(formData));
+    try {
+      await dispatch(login(formData));
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue ! Vous êtes maintenant connecté.",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+    } catch (err) {
+      toast({
+        title: "Erreur de connexion",
+        description: error || "Une erreur est survenue lors de la connexion",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
   };
 
   return (
