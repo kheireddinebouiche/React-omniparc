@@ -118,4 +118,17 @@ export const deleteUserAndRelatedData = async (userId: string): Promise<void> =>
     console.error('Erreur lors de la suppression des données de l\'utilisateur:', error);
     throw error;
   }
+};
+
+export const getUserById = async (userId: string): Promise<User | null> => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (!userDoc.exists()) {
+      return null;
+    }
+    return { id: userDoc.id, ...userDoc.data() } as User;
+  } catch (error) {
+    console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+    throw error;
+  }
 }; 

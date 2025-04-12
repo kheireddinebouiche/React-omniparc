@@ -45,11 +45,16 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/equipment/$(equipmentId)).data.isAvailable == true;
     }
     
+    function isValidRole(role) {
+      return role in ['CLIENT', 'PROFESSIONAL', 'BUSINESS', 'ADMIN'];
+    }
+    
     // Règles pour la collection users
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow create: if isAuthenticated() && isValidRole(request.resource.data.role);
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId && 
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) || isAdmin()));
       allow delete: if isAdmin();
     }
     
@@ -73,7 +78,10 @@ service cloud.firestore {
         (isRentalRequestOwner(requestId) || 
          isEquipmentOwner(get(/databases/$(database)/documents/rentalRequests/$(requestId)).data.equipmentId) ||
          isAdmin());
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated() && 
+        (isRentalRequestOwner(requestId) || 
+         isEquipmentOwner(get(/databases/$(database)/documents/rentalRequests/$(requestId)).data.equipmentId) ||
+         isAdmin());
     }
     
     // Règles pour la collection categories
@@ -101,6 +109,15 @@ service cloud.firestore {
         (get(/databases/$(database)/documents/notifications/$(notificationId)).data.userId == request.auth.uid || isAdmin());
       allow delete: if isAuthenticated() && 
         (get(/databases/$(database)/documents/notifications/$(notificationId)).data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // Règles pour la collection availabilities
+    match /availabilities/{availabilityId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+        (isEquipmentOwner(request.resource.data.equipmentId) || isAdmin());
+      allow update, delete: if isAuthenticated() && 
+        (isEquipmentOwner(resource.data.equipmentId) || isAdmin());
     }
     
     // Règles pour les autres collections

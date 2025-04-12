@@ -5,13 +5,22 @@ import {
   onAuthStateChanged,
   setPersistence,
   browserLocalPersistence,
-  deleteUser
+  deleteUser,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  updateProfile,
+  AuthError,
+  UserCredential
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
-import { User, UserRole } from '../types';
+import { User, UserRole, RegisterData } from '../types';
 import { serializeFirestoreData } from '../utils/serialization';
 import { deleteUserAndRelatedData } from './userService';
+import { VerificationStatus } from '../types/enums';
+
+const VALID_ROLES = ['CLIENT', 'PROFESSIONAL', 'BUSINESS', 'ADMIN'] as const;
+const MIN_PASSWORD_LENGTH = 6;
 
 // Configurer la persistance de l'authentification
 setPersistence(auth, browserLocalPersistence)
@@ -23,65 +32,164 @@ setPersistence(auth, browserLocalPersistence)
 onAuthStateChanged(auth, async (firebaseUser) => {
   if (firebaseUser) {
     try {
-      // Récupérer les données utilisateur depuis Firestore
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       if (userDoc.exists()) {
-        // Les données utilisateur seront traitées dans le composant App
-        // qui écoutera les changements d'état d'authentification
+        const userData = userDoc.data() as User;
+        if (!userData.isActive) {
+          await signOut(auth);
+          throw new Error('Ce compte a été désactivé');
+        }
       }
     } catch (error) {
-      console.error("Erreur lors de la récupération des données utilisateur:", error);
+      console.error("Erreur lors de la vérification de l'authentification:", error);
+      await signOut(auth);
     }
   }
 });
 
-export const register = async (
-  email: string,
-  password: string,
-  userData: { firstName: string; lastName: string; role: UserRole }
-): Promise<User> => {
+const handleAuthError = (error: AuthError): string => {
+  switch (error.code) {
+    case 'auth/email-already-in-use':
+      return 'Cette adresse email est déjà utilisée.';
+    case 'auth/invalid-email':
+      return 'Adresse email invalide.';
+    case 'auth/operation-not-allowed':
+      return 'Opération non autorisée.';
+    case 'auth/weak-password':
+      return 'Le mot de passe est trop faible.';
+    case 'auth/user-disabled':
+      return 'Ce compte a été désactivé.';
+    case 'auth/user-not-found':
+      return 'Aucun utilisateur trouvé avec cette adresse email.';
+    case 'auth/wrong-password':
+      return 'Mot de passe incorrect.';
+    case 'auth/too-many-requests':
+      return 'Trop de tentatives. Veuillez réessayer plus tard.';
+    case 'auth/network-request-failed':
+      return 'Erreur de connexion réseau. Vérifiez votre connexion internet.';
+    default:
+      return `Erreur d'authentification: ${error.message}`;
+  }
+};
+
+export const register = async (userData: RegisterData): Promise<User> => {
   try {
+    if (!userData.email || !userData.password || !userData.firstName || !userData.lastName || !userData.role) {
+      throw new Error('Tous les champs sont obligatoires');
+    }
+
+    if (userData.password.length < MIN_PASSWORD_LENGTH) {
+      throw new Error(`Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères`);
+    }
+
+    if (!VALID_ROLES.includes(userData.role)) {
+      throw new Error('Rôle utilisateur invalide');
+    }
+
+    const { email, password, firstName, lastName, role } = userData;
+    
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user: User = {
-      id: userCredential.user.uid,
+    const user = userCredential.user;
+
+    await updateProfile(user, {
+      displayName: `${firstName} ${lastName}`
+    });
+
+    const verificationStatus = role === 'CLIENT' ? VerificationStatus.APPROVED : VerificationStatus.PENDING;
+
+    const userDoc: User = {
+      id: user.uid,
       email,
-      ...userData,
+      firstName,
+      lastName,
+      role,
+      createdAt: serverTimestamp(),
       isActive: true,
+      emailVerified: false,
+      lastLogin: serverTimestamp(),
+      verificationStatus: verificationStatus
     };
 
-    await setDoc(doc(db, 'users', user.id), user);
-    return serializeFirestoreData(user as any) as User;
+    await setDoc(doc(db, 'users', user.uid), userDoc);
+    
+    try {
+      await sendEmailVerification(user);
+    } catch (emailError) {
+      console.warn('Impossible d\'envoyer l\'email de vérification:', emailError);
+    }
+    
+    return userDoc;
   } catch (error: any) {
-    throw new Error(error.message);
+    if (error.code) {
+      throw new Error(handleAuthError(error));
+    }
+    throw new Error(`Erreur lors de l'inscription: ${error.message}`);
   }
 };
 
 export const loginUser = async (email: string, password: string): Promise<User> => {
   try {
+    if (!email || !password) {
+      throw new Error('Email et mot de passe requis');
+    }
+
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
     
     if (!userDoc.exists()) {
-      throw new Error('Utilisateur non trouvé');
+      await signOut(auth);
+      throw new Error('Données utilisateur non trouvées');
     }
 
     const userData = userDoc.data() as User;
+    
     if (!userData.isActive) {
       await signOut(auth);
       throw new Error('Ce compte a été désactivé');
     }
 
-    return serializeFirestoreData(userData as any) as User;
+    if (!VALID_ROLES.includes(userData.role)) {
+      await signOut(auth);
+      throw new Error('Rôle utilisateur invalide');
+    }
+
+    await updateDoc(doc(db, 'users', userCredential.user.uid), {
+      lastLogin: serverTimestamp(),
+      emailVerified: userCredential.user.emailVerified
+    });
+
+    return {
+      ...userData,
+      role: userData.role.toUpperCase() as UserRole
+    };
   } catch (error: any) {
-    throw new Error(error.message);
+    if (error.code) {
+      throw new Error(handleAuthError(error));
+    }
+    throw new Error(`Erreur de connexion: ${error.message}`);
   }
 };
 
-export const logout = async (): Promise<void> => {
+export const logoutUser = async (): Promise<void> => {
   try {
     await signOut(auth);
   } catch (error: any) {
-    throw new Error(error.message);
+    throw new Error(`Erreur lors de la déconnexion: ${error.message}`);
+  }
+};
+
+export const resetPassword = async (email: string): Promise<void> => {
+  try {
+    if (!email) {
+      throw new Error('Email requis');
+    }
+    
+    await sendPasswordResetEmail(auth, email);
+  } catch (error: any) {
+    if (error.code) {
+      throw new Error(handleAuthError(error));
+    }
+    throw new Error(`Erreur lors de la réinitialisation du mot de passe: ${error.message}`);
   }
 };
 
@@ -108,7 +216,13 @@ export const getCurrentUser = async (): Promise<User | null> => {
           return;
         }
 
-        resolve(serializeFirestoreData(userData as any) as User);
+        // S'assurer que le rôle est en majuscules
+        const userWithUpperCaseRole = {
+          ...serializeFirestoreData(userData as any),
+          role: userData.role.toUpperCase() as UserRole
+        };
+
+        resolve(userWithUpperCaseRole as User);
       } catch (error: any) {
         reject(error);
       }
@@ -116,7 +230,7 @@ export const getCurrentUser = async (): Promise<User | null> => {
   });
 };
 
-export const updateProfile = async (userData: Partial<User>): Promise<User> => {
+export const updateUserProfile = async (userData: Partial<User>): Promise<User> => {
   try {
     const user = auth.currentUser;
     if (!user) {
@@ -153,4 +267,29 @@ export const deleteAccount = async (): Promise<void> => {
     console.error('Erreur lors de la suppression du compte:', error);
     throw new Error(error.message);
   }
-}; 
+};
+
+export const updateUserRole = async (userId: string, newRole: UserRole): Promise<void> => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      role: newRole.toUpperCase()
+    });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du rôle:', error);
+    throw error;
+  }
+};
+
+const authService = {
+  register,
+  loginUser,
+  logoutUser,
+  resetPassword,
+  getCurrentUser,
+  updateUserProfile,
+  deleteAccount,
+  updateUserRole
+};
+
+export default authService; 

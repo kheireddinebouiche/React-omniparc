@@ -6,7 +6,8 @@ import {
   addDoc,
   updateDoc,
   query,
-  where
+  where,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { RentalRequest } from '../types';
@@ -33,11 +34,18 @@ export const getRentalRequest = async (id: string): Promise<RentalRequest | null
   }
 };
 
-export const updateRentalRequest = async (id: string, request: Partial<RentalRequest>): Promise<void> => {
+export const updateRentalRequest = async (requestId: string, data: Partial<RentalRequest>): Promise<void> => {
   try {
-    const docRef = doc(db, 'rentalRequests', id);
-    await updateDoc(docRef, request);
+    const requestRef = doc(db, 'rentalRequests', requestId);
+    const requestDoc = await getDoc(requestRef);
+    
+    if (!requestDoc.exists()) {
+      throw new Error('Demande de location non trouvée');
+    }
+
+    await updateDoc(requestRef, data);
   } catch (error) {
+    console.error('Erreur lors de la mise à jour de la demande de location:', error);
     throw error;
   }
 };
@@ -57,6 +65,34 @@ export const getRentalRequestsByEquipment = async (equipmentId: string): Promise
     const q = query(collection(db, 'rentalRequests'), where('equipmentId', '==', equipmentId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RentalRequest));
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const cancelRentalRequest = async (requestId: string): Promise<void> => {
+  try {
+    const docRef = doc(db, 'rentalRequests', requestId);
+    await updateDoc(docRef, { status: 'REJECTED' });
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const deleteRentalRequest = async (requestId: string): Promise<void> => {
+  try {
+    const requestRef = doc(db, 'rentalRequests', requestId);
+    await deleteDoc(requestRef);
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la demande:', error);
+    throw error;
+  }
+};
+
+export const approveRentalRequest = async (requestId: string): Promise<void> => {
+  try {
+    const docRef = doc(db, 'rentalRequests', requestId);
+    await updateDoc(docRef, { status: 'APPROVED' });
   } catch (error) {
     throw error;
   }

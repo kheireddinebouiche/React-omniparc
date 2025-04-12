@@ -15,9 +15,17 @@ import {
   Heading,
   Divider,
   useToken,
+  IconButton,
 } from '@chakra-ui/react';
 import { User } from '../types';
-import { FaTag, FaEuroSign, FaCheckCircle, FaTimesCircle, FaInfoCircle, FaTruck, FaCog, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaTag, FaEuroSign, FaCheckCircle, FaTimesCircle, FaInfoCircle, FaTruck, FaCog, FaMapMarkerAlt, FaHeart, FaExchangeAlt, FaStar, FaRegStar, FaComments } from 'react-icons/fa';
+
+interface Rating {
+  userId: string;
+  rating: number;
+  comment: string;
+  createdAt: Date;
+}
 
 interface Equipment {
   id: string;
@@ -29,6 +37,8 @@ interface Equipment {
   ownerId: string;
   specifications?: Record<string, string>;
   location?: string;
+  ratings?: Rating[];
+  averageRating?: number;
 }
 
 interface EquipmentCardProps {
@@ -36,9 +46,13 @@ interface EquipmentCardProps {
   onView: () => void;
   isAdmin?: string;
   user?: User | null;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
+  onAddToCompare?: () => void;
+  onRate?: () => void;
 }
 
-const EquipmentCard: React.FC<EquipmentCardProps> = ({ equipment, onView, isAdmin, user }) => {
+const EquipmentCard: React.FC<EquipmentCardProps> = ({ equipment, onView, isAdmin, user, isFavorite, onToggleFavorite, onAddToCompare, onRate }) => {
   const bgColor = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const textColor = useColorModeValue('gray.600', 'gray.400');
@@ -117,6 +131,44 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({ equipment, onView, isAdmi
             </>
           )}
         </Badge>
+        <Box
+          position="absolute"
+          top="2"
+          right="2"
+          display="flex"
+          gap="2"
+        >
+          {onToggleFavorite && (
+            <IconButton
+              aria-label="Toggle favorite"
+              icon={<FaHeart color={isFavorite ? 'red' : 'white'} />}
+              size="sm"
+              variant="ghost"
+              bg="rgba(0,0,0,0.5)"
+              color="white"
+              _hover={{ bg: 'rgba(0,0,0,0.7)' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite();
+              }}
+            />
+          )}
+          {onAddToCompare && (
+            <IconButton
+              aria-label="Add to compare"
+              icon={<FaExchangeAlt color="white" />}
+              size="sm"
+              variant="ghost"
+              bg="rgba(0,0,0,0.5)"
+              color="white"
+              _hover={{ bg: 'rgba(0,0,0,0.7)' }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToCompare();
+              }}
+            />
+          )}
+        </Box>
       </Box>
 
       <VStack align="stretch" p={3} spacing={2} flex="1" display="flex" flexDirection="column">
@@ -232,6 +284,45 @@ const EquipmentCard: React.FC<EquipmentCardProps> = ({ equipment, onView, isAdmi
           <Text fontSize="xs" color="gray.600">
             {equipment.location || 'Localisation non spécifiée'}
           </Text>
+        </HStack>
+
+        {/* Affichage des notes */}
+        <HStack spacing={1} mt={2}>
+          {equipment.averageRating ? (
+            <>
+              <HStack spacing={1}>
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <Icon
+                    key={index}
+                    as={index < Math.round(equipment.averageRating!) ? FaStar : FaRegStar}
+                    color={index < Math.round(equipment.averageRating!) ? "yellow.400" : "gray.300"}
+                    boxSize={3}
+                  />
+                ))}
+              </HStack>
+              <Text fontSize="xs" color={textColor}>
+                ({equipment.ratings?.length || 0} avis)
+              </Text>
+            </>
+          ) : (
+            <Text fontSize="xs" color={textColor}>
+              Aucun avis
+            </Text>
+          )}
+          {onRate && (
+            <Tooltip label="Donner votre avis">
+              <IconButton
+                aria-label="Donner votre avis"
+                icon={<FaComments />}
+                size="xs"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRate();
+                }}
+              />
+            </Tooltip>
+          )}
         </HStack>
       </VStack>
     </Box>

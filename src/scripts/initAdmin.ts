@@ -18,8 +18,10 @@ async function initializeAdmin() {
       firstName: 'Admin',
       lastName: 'User',
       role: 'ADMIN',
-      createdAt: new Date(),
-      isActive: true
+      createdAt: new Date().toISOString(),
+      isActive: true,
+      emailVerified: true,
+      lastLogin: new Date().toISOString()
     };
 
     await setDoc(doc(db, 'users', user.uid), adminDoc);

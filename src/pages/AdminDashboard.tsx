@@ -1,17 +1,32 @@
-import { useState, useEffect } from 'react';
+import React, { FC, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import {
   Container,
   Box,
   Text,
   Heading,
+  Button,
+  Card,
+  CardHeader,
+  CardBody,
+  CardFooter,
+  SimpleGrid,
+  useToast,
+  Spinner,
+  Center,
+  Alert,
+  AlertIcon,
   Table,
   Thead,
   Tbody,
   Tr,
   Th,
   Td,
+  Badge,
+  HStack,
   IconButton,
-  Button,
+  useDisclosure,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -19,513 +34,506 @@ import {
   ModalBody,
   ModalFooter,
   ModalCloseButton,
-  Input,
-  Badge,
-  Grid,
-  Card,
-  CardBody,
-  Select,
   FormControl,
   FormLabel,
-  Alert,
-  AlertIcon,
-  Progress,
-  Avatar,
-  Tooltip,
-  useDisclosure,
+  Input,
+  Select,
+  Switch,
   VStack,
-  HStack,
-  useColorModeValue,
-  Stack,
-  InputGroup,
-  InputRightElement,
-  Fade,
-  ScaleFade,
-  SlideFade,
 } from '@chakra-ui/react';
 import {
   FaEdit,
-  FaTrash,
-  FaBan,
-  FaCheckCircle,
-  FaUser,
+  FaEye,
+  FaUserShield,
   FaBuilding,
   FaTools,
-  FaUserShield,
-  FaChartLine,
-  FaCalendarAlt,
-  FaExclamationTriangle,
-  FaUsers,
-  FaEnvelope,
 } from 'react-icons/fa';
-import { SearchIcon } from '@chakra-ui/icons';
-import { User, UserRole } from '../types';
+import { RootState } from '../store';
+import { User, UserRole, Equipment, Address } from '../types';
+import { VerificationStatus } from '../types/enums';
 import * as userService from '../services/userService';
-import { useNotification } from '../contexts/NotificationContext';
-import NotificationContainer from '../components/NotificationContainer';
+import * as equipmentService from '../services/equipmentService';
 
-const AdminDashboard = () => {
+const AdminDashboard: FC = (): JSX.Element => {
+  const navigate = useNavigate();
+  const toast = useToast();
+  const { user } = useSelector((state: RootState) => state.auth) as { user: User | null };
   const [users, setUsers] = useState<User[]>([]);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    role: UserRole.CLIENT,
-  });
-  const [error, setError] = useState('');
-  const [filterRole, setFilterRole] = useState<UserRole | undefined>(undefined);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
-  const { showNotification } = useNotification();
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const cardBg = useColorModeValue('white', 'gray.800');
-  const textColor = useColorModeValue('gray.600', 'gray.400');
-
-  // Statistiques
-  const stats = {
-    totalUsers: users.length,
-    clients: users.filter(u => u.role === UserRole.CLIENT).length,
-    professionals: users.filter(u => u.role === UserRole.PROFESSIONAL).length,
-    businesses: users.filter(u => u.role === UserRole.BUSINESS).length,
-    activeUsers: users.filter(u => u.isActive).length,
-    inactiveUsers: users.filter(u => !u.isActive).length,
-  };
+  const [error, setError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editFormData, setEditFormData] = useState<Partial<User>>({});
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        if (user && user.role === 'ADMIN') {
+          const [usersData, equipmentData] = await Promise.all([
+            userService.getAllUsers(),
+            equipmentService.getEquipments()
+          ]);
+          setUsers(usersData);
+          setEquipment(equipmentData);
+        } else {
+          navigate('/dashboard');
+        }
+      } catch (err) {
+        setError("Erreur lors du chargement des données");
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les données du tableau de bord administrateur",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-      const allUsers = await userService.getAllUsers();
-      setUsers(allUsers);
-    } catch (error) {
-      setError('Erreur lors du chargement des utilisateurs');
-    } finally {
-      setLoading(false);
-    }
-  };
+    loadDashboardData();
+  }, [user, navigate, toast]);
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
-    setFormData({
+    setEditFormData({
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      phoneNumber: user.phoneNumber,
       role: user.role,
+      companyName: user.companyName,
+      siret: user.siret,
+      address: user.address,
+      deliveryAddress: user.deliveryAddress,
+      isActive: user.isActive,
+      verificationStatus: user.verificationStatus
     });
     onOpen();
   };
 
-  const handleCloseDialog = () => {
-    onClose();
-    setSelectedUser(null);
-    setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
-      role: UserRole.CLIENT,
-    });
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    setEditFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
   };
 
-  const handleRoleChange = (userId: string, e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newRole = e.target.value as UserRole;
-    userService.updateUser(userId, { role: newRole });
-  };
-
-  const handleStatusChange = (userId: string, e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newStatus = e.target.value === 'active';
-    userService.updateUserStatus(userId, newStatus);
+  const handleAddressChange = (field: 'address' | 'deliveryAddress', key: keyof Address, value: string) => {
+    setEditFormData(prev => {
+      const currentAddress = prev[field] as Address || { street: '', city: '', postalCode: '', country: '' };
+      return {
+        ...prev,
+        [field]: {
+          ...currentAddress,
+          [key]: value
+        }
+      };
+    });
   };
 
   const handleSubmit = async () => {
+    if (!selectedUser) return;
+    
     try {
-      if (selectedUser) {
-        await userService.updateUser(selectedUser.id, formData);
-        await loadUsers();
-        handleCloseDialog();
-        showNotification('Utilisateur modifié avec succès', 'success');
-      }
+      await userService.updateUser(selectedUser.id, editFormData);
+      toast({
+        title: "Utilisateur mis à jour",
+        description: "Les informations de l'utilisateur ont été mises à jour avec succès.",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      const updatedUsers = await userService.getAllUsers();
+      setUsers(updatedUsers);
+      onClose();
     } catch (error) {
-      setError('Erreur lors de la mise à jour de l\'utilisateur');
-      showNotification('Erreur lors de la mise à jour de l\'utilisateur', 'error');
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre à jour l'utilisateur.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     }
   };
 
-  const handleDeleteClick = (user: User) => {
-    setUserToDelete(user);
-    onDeleteOpen();
-  };
-
-  const handleCloseDeleteDialog = () => {
-    onDeleteClose();
-    setUserToDelete(null);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (userToDelete) {
-      try {
-        await userService.deleteUser(userToDelete.id);
-        await loadUsers();
-        handleCloseDeleteDialog();
-        showNotification('Utilisateur supprimé avec succès', 'success');
-      } catch (error) {
-        setError('Erreur lors de la suppression de l\'utilisateur');
-        showNotification('Erreur lors de la suppression de l\'utilisateur', 'error');
-      }
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+        return 'green';
+      case 'REJECTED':
+        return 'red';
+      case 'PENDING':
+        return 'yellow';
+      default:
+        return 'gray';
     }
   };
 
-  const handleToggleUserStatus = async (userId: string, isActive: boolean) => {
-    try {
-      console.log('Tentative de modification du statut de connexion:', { userId, currentStatus: isActive, newStatus: !isActive });
-      await userService.updateUserStatus(userId, !isActive);
-      console.log('Statut de connexion modifié avec succès');
-      await loadUsers();
-      showNotification(`Compte ${!isActive ? 'activé' : 'désactivé'} avec succès`, 'success');
-    } catch (error: any) {
-      console.error('Erreur détaillée:', error);
-      setError(`Erreur lors de la modification du statut de connexion: ${error.message || 'Erreur inconnue'}`);
-      showNotification('Erreur lors de la modification du statut du compte', 'error');
+  const getRoleLabel = (role: UserRole) => {
+    switch (role) {
+      case 'ADMIN':
+        return 'Administrateur';
+      case 'PROFESSIONAL':
+        return 'Professionnel';
+      case 'BUSINESS':
+        return 'Entreprise';
+      case 'CLIENT':
+        return 'Client';
+      default:
+        return role;
     }
   };
 
-  const filteredUsers = filterRole
-    ? users.filter(user => user.role === filterRole)
-    : users;
+  if (loading) {
+    return (
+      <Center h="100vh">
+        <Spinner size="xl" color="blue.500" thickness="4px" />
+      </Center>
+    );
+  }
 
-  const StatCard = ({ title, value, icon, color }: { title: string; value: number; icon: React.ReactNode; color: string }) => (
-    <Card bg={cardBg} borderRadius="lg" boxShadow="md" overflow="hidden" position="relative">
-      <Box
-        position="absolute"
-        top={0}
-        right={0}
-        width="100px"
-        height="100%"
-        opacity={0.1}
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        {icon}
-      </Box>
-      <CardBody>
-        <Text color={textColor} fontSize="lg" fontWeight="medium" mb={2}>
-          {title}
-        </Text>
-        <Heading size="xl" color={color}>
-          {value}
-        </Heading>
-      </CardBody>
-    </Card>
-  );
+  if (error) {
+    return (
+      <Container maxW="container.xl" p={4}>
+        <Alert status="error">
+          <AlertIcon />
+          {error}
+        </Alert>
+      </Container>
+    );
+  }
 
   return (
-    <Box maxW="100vw" px={4} py={8}>
-      <Fade in={true}>
+    <Container maxW="container.xl" p={4}>
+      <Box>
+        <Heading mb={6}>Tableau de bord administrateur</Heading>
+        
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={6}>
+          <Card>
+            <CardBody>
+              <HStack>
+                <Box p={3} bg="blue.100" borderRadius="md">
+                  <FaUserShield size={24} color="#3182CE" />
+                </Box>
+                <Box>
+                  <Text fontSize="sm" color="gray.500">Utilisateurs</Text>
+                  <Heading size="md">{users.length}</Heading>
+                </Box>
+              </HStack>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody>
+              <HStack>
+                <Box p={3} bg="green.100" borderRadius="md">
+                  <FaTools size={24} color="#38A169" />
+                </Box>
+                <Box>
+                  <Text fontSize="sm" color="gray.500">Équipements</Text>
+                  <Heading size="md">{equipment.length}</Heading>
+                </Box>
+              </HStack>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody>
+              <HStack>
+                <Box p={3} bg="purple.100" borderRadius="md">
+                  <FaBuilding size={24} color="#805AD5" />
+                </Box>
+                <Box>
+                  <Text fontSize="sm" color="gray.500">Professionnels</Text>
+                  <Heading size="md">{users.filter(u => u.role === 'PROFESSIONAL').length}</Heading>
+                </Box>
+              </HStack>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody>
+              <HStack>
+                <Box p={3} bg="orange.100" borderRadius="md">
+                  <FaBuilding size={24} color="#DD6B20" />
+                </Box>
+                <Box>
+                  <Text fontSize="sm" color="gray.500">Entreprises</Text>
+                  <Heading size="md">{users.filter(u => u.role === 'BUSINESS').length}</Heading>
+                </Box>
+              </HStack>
+            </CardBody>
+          </Card>
+        </SimpleGrid>
+
         <Box mb={8}>
-          <Heading as="h1" size="xl" mb={2}>Tableau de bord administrateur</Heading>
-          <Text color="gray.600">Gérez les utilisateurs et surveillez l'activité de la plateforme</Text>
-        </Box>
-      </Fade>
-
-      {/* Statistiques */}
-      <ScaleFade in={true} initialScale={0.9}>
-        <Grid
-          templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(6, 1fr)" }}
-          gap={6}
-          mb={8}
-        >
-          <StatCard
-            title="Total Utilisateurs"
-            value={stats.totalUsers}
-            icon={<FaUsers size={60} />}
-            color="primary.500"
-          />
-          <StatCard
-            title="Clients"
-            value={stats.clients}
-            icon={<FaUser size={60} />}
-            color="blue.500"
-          />
-          <StatCard
-            title="Professionnels"
-            value={stats.professionals}
-            icon={<FaTools size={60} />}
-            color="orange.500"
-          />
-          <StatCard
-            title="Entreprises"
-            value={stats.businesses}
-            icon={<FaBuilding size={60} />}
-            color="green.500"
-          />
-          <StatCard
-            title="Utilisateurs Actifs"
-            value={stats.activeUsers}
-            icon={<FaCheckCircle size={60} />}
-            color="green.500"
-          />
-          <StatCard
-            title="Utilisateurs Inactifs"
-            value={stats.inactiveUsers}
-            icon={<FaBan size={60} />}
-            color="red.500"
-          />
-        </Grid>
-      </ScaleFade>
-
-      {/* Filtres */}
-      <SlideFade in={true} offsetY="20px">
-        <Card p={5} mb={6} borderRadius="lg" boxShadow="md" w="100%">
-          <Stack direction={{ base: "column", md: "row" }} spacing={4} align="center">
-            <FormControl maxW={{ base: "100%", md: "300px" }}>
-              <FormLabel fontWeight="medium">Rechercher un utilisateur</FormLabel>
-              <InputGroup>
-                <Input
-                  placeholder="Nom, email..."
-                  value={searchQuery}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                />
-                <InputRightElement>
-                  <SearchIcon color="gray.400" />
-                </InputRightElement>
-              </InputGroup>
-            </FormControl>
-            <FormControl maxW={{ base: "100%", md: "300px" }}>
-              <FormLabel fontWeight="medium">Filtrer par rôle</FormLabel>
-              <Select
-                value={filterRole}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterRole(e.target.value as UserRole || undefined)}
-              >
-                <option value="">Tous les rôles</option>
-                <option value="CLIENT">Clients</option>
-                <option value="PROFESSIONAL">Professionnels</option>
-                <option value="BUSINESS">Entreprises</option>
-              </Select>
-            </FormControl>
-          </Stack>
-        </Card>
-      </SlideFade>
-
-      {/* Liste des utilisateurs */}
-      <SlideFade in={true} offsetY="20px">
-        <Card p={5} borderRadius="lg" boxShadow="md" w="100%">
-          <Box overflowX="auto">
-            <Table variant="simple">
-              <Thead>
-                <Tr>
-                  <Th>Utilisateur</Th>
-                  <Th>Email</Th>
-                  <Th>Rôle</Th>
-                  <Th>Statut</Th>
-                  <Th textAlign="right">Actions</Th>
+          <Heading size="md" mb={4}>Gestion des utilisateurs</Heading>
+          <Table variant="simple">
+            <Thead>
+              <Tr>
+                <Th>Nom</Th>
+                <Th>Email</Th>
+                <Th>Rôle</Th>
+                <Th>Statut</Th>
+                <Th>Vérification</Th>
+                <Th>Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {users.map((user) => (
+                <Tr key={user.id}>
+                  <Td>{`${user.firstName} ${user.lastName}`}</Td>
+                  <Td>{user.email}</Td>
+                  <Td>{getRoleLabel(user.role)}</Td>
+                  <Td>
+                    <Badge colorScheme={user.isActive ? 'green' : 'red'}>
+                      {user.isActive ? 'Actif' : 'Inactif'}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <Badge colorScheme={
+                      user.verificationStatus === VerificationStatus.APPROVED ? 'green' :
+                      user.verificationStatus === VerificationStatus.REJECTED ? 'red' : 'yellow'
+                    }>
+                      {user.verificationStatus}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <HStack spacing={2}>
+                      <IconButton
+                        aria-label="Voir l'utilisateur"
+                        icon={<FaEye />}
+                        size="sm"
+                        onClick={() => navigate(`/users/${user.id}`)}
+                      />
+                      <IconButton
+                        aria-label="Modifier l'utilisateur"
+                        icon={<FaEdit />}
+                        size="sm"
+                        onClick={() => handleEditUser(user)}
+                      />
+                    </HStack>
+                  </Td>
                 </Tr>
-              </Thead>
-              <Tbody>
-                {filteredUsers.map((user) => (
-                  <Tr key={user.id}>
-                    <Td>
-                      <HStack spacing={4}>
-                        <Avatar bg="primary.500" color="white">
-                          {user.firstName[0]}{user.lastName[0]}
-                        </Avatar>
-                        <VStack align="start" spacing={0}>
-                          <Text fontWeight="medium">
-                            {user.firstName} {user.lastName}
-                          </Text>
-                          <Text fontSize="sm" color={textColor}>
-                            ID: {user.id}
-                          </Text>
-                        </VStack>
-                      </HStack>
-                    </Td>
-                    <Td>
-                      <HStack spacing={2}>
-                        <FaEnvelope color={textColor} />
-                        <Text>{user.email}</Text>
-                      </HStack>
-                    </Td>
-                    <Td>
-                      <Badge
-                        colorScheme={
-                          user.role === UserRole.CLIENT ? 'blue' :
-                          user.role === UserRole.PROFESSIONAL ? 'orange' :
-                          'green'
-                        }
-                        p={2}
-                        borderRadius="md"
-                      >
-                        <HStack spacing={2}>
-                          {user.role === UserRole.CLIENT ? <FaUser /> :
-                           user.role === UserRole.PROFESSIONAL ? <FaTools /> :
-                           <FaBuilding />}
-                          <Text>{user.role}</Text>
-                        </HStack>
-                      </Badge>
-                    </Td>
-                    <Td>
-                      <Badge
-                        colorScheme={user.isActive ? 'green' : 'red'}
-                        p={2}
-                        borderRadius="md"
-                      >
-                        {user.isActive ? 'Compte actif' : 'Compte désactivé'}
-                      </Badge>
-                    </Td>
-                    <Td textAlign="right">
-                      <HStack spacing={2} justify="flex-end">
-                        <Tooltip label="Modifier">
-                          <IconButton
-                            aria-label="Modifier"
-                            icon={<FaEdit />}
-                            colorScheme="blue"
-                            variant="ghost"
-                            onClick={() => handleEditUser(user)}
-                          />
-                        </Tooltip>
-                        <Tooltip label="Supprimer">
-                          <IconButton
-                            aria-label="Supprimer"
-                            icon={<FaTrash />}
-                            colorScheme="red"
-                            variant="ghost"
-                            onClick={() => handleDeleteClick(user)}
-                          />
-                        </Tooltip>
-                        <Tooltip label={user.isActive ? "Désactiver le compte" : "Activer le compte"}>
-                          <IconButton
-                            aria-label={user.isActive ? "Désactiver" : "Activer"}
-                            icon={user.isActive ? <FaBan /> : <FaCheckCircle />}
-                            colorScheme={user.isActive ? "orange" : "green"}
-                            variant="ghost"
-                            onClick={() => handleToggleUserStatus(user.id, user.isActive)}
-                          />
-                        </Tooltip>
-                      </HStack>
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </Box>
-        </Card>
-      </SlideFade>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
 
-      {/* Modal de modification */}
-      <Modal isOpen={isOpen} onClose={handleCloseDialog} size="md">
+        <Box>
+          <Heading size="md" mb={4}>Actions rapides</Heading>
+          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
+            <Card>
+              <CardHeader>
+                <Heading size="md">Utilisateurs</Heading>
+              </CardHeader>
+              <CardBody>
+                <Text>Gérer les utilisateurs et leurs rôles</Text>
+              </CardBody>
+              <CardFooter>
+                <Button onClick={() => navigate('/users')}>Gérer les utilisateurs</Button>
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <Heading size="md">Équipements</Heading>
+              </CardHeader>
+              <CardBody>
+                <Text>Gérer tous les équipements</Text>
+              </CardBody>
+              <CardFooter>
+                <Button onClick={() => navigate('/equipment')}>Gérer les équipements</Button>
+              </CardFooter>
+            </Card>
+            <Card>
+              <CardHeader>
+                <Heading size="md">Locations</Heading>
+              </CardHeader>
+              <CardBody>
+                <Text>Gérer les demandes de location</Text>
+              </CardBody>
+              <CardFooter>
+                <Button onClick={() => navigate('/rentals')}>Gérer les locations</Button>
+              </CardFooter>
+            </Card>
+          </SimpleGrid>
+        </Box>
+      </Box>
+
+      {/* Modal d'édition d'utilisateur */}
+      <Modal isOpen={isOpen} onClose={onClose} size="xl">
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>
-            {selectedUser ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}
-          </ModalHeader>
+          <ModalHeader>Modifier l'utilisateur</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            {error && (
-              <Alert status="error" mb={4}>
-                <AlertIcon />
-                {error}
-              </Alert>
-            )}
             <VStack spacing={4}>
               <FormControl>
                 <FormLabel>Prénom</FormLabel>
                 <Input
                   name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
+                  value={editFormData.firstName || ''}
+                  onChange={handleFormChange}
                 />
               </FormControl>
               <FormControl>
                 <FormLabel>Nom</FormLabel>
                 <Input
                   name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
+                  value={editFormData.lastName || ''}
+                  onChange={handleFormChange}
                 />
               </FormControl>
               <FormControl>
                 <FormLabel>Email</FormLabel>
                 <Input
                   name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  isDisabled
+                  value={editFormData.email || ''}
+                  isReadOnly
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Téléphone</FormLabel>
+                <Input
+                  name="phoneNumber"
+                  value={editFormData.phoneNumber || ''}
+                  onChange={handleFormChange}
                 />
               </FormControl>
               <FormControl>
                 <FormLabel>Rôle</FormLabel>
                 <Select
-                  value={formData.role}
-                  onChange={(e) => {
-                    if (selectedUser) {
-                      handleRoleChange(selectedUser.id, e);
-                    }
-                  }}
+                  name="role"
+                  value={editFormData.role || ''}
+                  onChange={handleFormChange}
                 >
-                  <option value={UserRole.CLIENT}>Client</option>
-                  <option value={UserRole.PROFESSIONAL}>Professionnel</option>
-                  <option value={UserRole.BUSINESS}>Entreprise</option>
+                  <option value="CLIENT">Client</option>
+                  <option value="PROFESSIONAL">Professionnel</option>
+                  <option value="BUSINESS">Entreprise</option>
+                  <option value="ADMIN">Administrateur</option>
+                </Select>
+              </FormControl>
+              {(editFormData.role === 'PROFESSIONAL' || editFormData.role === 'BUSINESS') && (
+                <>
+                  <FormControl>
+                    <FormLabel>Nom de l'entreprise</FormLabel>
+                    <Input
+                      name="companyName"
+                      value={editFormData.companyName || ''}
+                      onChange={handleFormChange}
+                    />
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>SIRET</FormLabel>
+                    <Input
+                      name="siret"
+                      value={editFormData.siret || ''}
+                      onChange={handleFormChange}
+                    />
+                  </FormControl>
+                </>
+              )}
+              <FormControl>
+                <FormLabel>Adresse</FormLabel>
+                <Input
+                  name="address.street"
+                  value={((editFormData.address as unknown as Address) || {}).street || ''}
+                  onChange={(e) => handleAddressChange('address', 'street', e.target.value)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Ville</FormLabel>
+                <Input
+                  name="address.city"
+                  value={((editFormData.address as unknown as Address) || {}).city || ''}
+                  onChange={(e) => handleAddressChange('address', 'city', e.target.value)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Code postal</FormLabel>
+                <Input
+                  name="address.postalCode"
+                  value={((editFormData.address as unknown as Address) || {}).postalCode || ''}
+                  onChange={(e) => handleAddressChange('address', 'postalCode', e.target.value)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Pays</FormLabel>
+                <Input
+                  name="address.country"
+                  value={((editFormData.address as unknown as Address) || {}).country || ''}
+                  onChange={(e) => handleAddressChange('address', 'country', e.target.value)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Adresse de livraison</FormLabel>
+                <Input
+                  name="deliveryAddress.street"
+                  value={(editFormData.deliveryAddress as Address)?.street || ''}
+                  onChange={(e) => handleAddressChange('deliveryAddress', 'street', e.target.value)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Ville</FormLabel>
+                <Input
+                  name="deliveryAddress.city"
+                  value={(editFormData.deliveryAddress as Address)?.city || ''}
+                  onChange={(e) => handleAddressChange('deliveryAddress', 'city', e.target.value)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Code postal</FormLabel>
+                <Input
+                  name="deliveryAddress.postalCode"
+                  value={(editFormData.deliveryAddress as Address)?.postalCode || ''}
+                  onChange={(e) => handleAddressChange('deliveryAddress', 'postalCode', e.target.value)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Pays</FormLabel>
+                <Input
+                  name="deliveryAddress.country"
+                  value={(editFormData.deliveryAddress as Address)?.country || ''}
+                  onChange={(e) => handleAddressChange('deliveryAddress', 'country', e.target.value)}
+                />
+              </FormControl>
+              <FormControl display="flex" alignItems="center">
+                <FormLabel mb="0">Compte actif</FormLabel>
+                <Switch
+                  name="isActive"
+                  isChecked={editFormData.isActive}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Statut de vérification</FormLabel>
+                <Select
+                  name="verificationStatus"
+                  value={editFormData.verificationStatus || ''}
+                  onChange={handleFormChange}
+                >
+                  <option value={VerificationStatus.PENDING}>En attente</option>
+                  <option value={VerificationStatus.APPROVED}>Approuvé</option>
+                  <option value={VerificationStatus.REJECTED}>Rejeté</option>
                 </Select>
               </FormControl>
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleCloseDialog}>
+            <Button variant="ghost" mr={3} onClick={onClose}>
               Annuler
             </Button>
-            <Button colorScheme="primary" onClick={handleSubmit}>
+            <Button colorScheme="blue" onClick={handleSubmit}>
               Enregistrer
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-
-      {/* Modal de confirmation de suppression */}
-      <Modal isOpen={isDeleteOpen} onClose={handleCloseDeleteDialog} size="md">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader color="red.500">
-            <HStack spacing={2}>
-              <FaExclamationTriangle />
-              <Text>Confirmer la suppression</Text>
-            </HStack>
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Text mb={4}>
-              Êtes-vous sûr de vouloir supprimer l'utilisateur <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong> ?
-            </Text>
-            <Text color="red.500" fontSize="sm">
-              Cette action est irréversible et supprimera définitivement le compte de l'utilisateur.
-            </Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleCloseDeleteDialog}>
-              Annuler
-            </Button>
-            <Button colorScheme="red" onClick={handleDeleteConfirm}>
-              Supprimer
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      <NotificationContainer />
-    </Box>
+    </Container>
   );
 };
 

@@ -1,0 +1,20 @@
+export enum VerificationStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED'
+}
+
+export enum UserRole {
+  CLIENT = 'CLIENT',
+  PROFESSIONAL = 'PROFESSIONAL',
+  BUSINESS = 'BUSINESS',
+  ADMIN = 'ADMIN'
+}
+
+export enum DocumentType {
+  ID_CARD = 'ID_CARD',
+  DRIVERS_LICENSE = 'DRIVERS_LICENSE',
+  BUSINESS_LICENSE = 'BUSINESS_LICENSE',
+  INSURANCE = 'INSURANCE',
+  OTHER = 'OTHER'
+} 

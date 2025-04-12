@@ -7,12 +7,14 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   error: string | null;
+  isAuthenticated: boolean;
 }
 
 const initialState: AuthState = {
   user: null,
   loading: false,
   error: null,
+  isAuthenticated: false,
 };
 
 export const login = createAsyncThunk(
@@ -26,8 +28,7 @@ export const login = createAsyncThunk(
 export const register = createAsyncThunk(
   'auth/register',
   async (userData: { email: string; password: string; firstName: string; lastName: string; role: UserRole }) => {
-    const { email, password, ...rest } = userData;
-    const newUser = await authService.register(email, password, rest);
+    const newUser = await authService.register(userData);
     return serializeFirestoreData(newUser as any) as User;
   }
 );
@@ -35,7 +36,7 @@ export const register = createAsyncThunk(
 export const logout = createAsyncThunk(
   'auth/logout',
   async () => {
-    await authService.logout();
+    await authService.logoutUser();
   }
 );
 
@@ -50,7 +51,7 @@ export const getCurrentUser = createAsyncThunk(
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (userData: Partial<User>) => {
-    const updatedUser = await authService.updateProfile(userData);
+    const updatedUser = await authService.updateUserProfile(userData);
     return serializeFirestoreData(updatedUser as any) as User;
   }
 );
@@ -73,6 +74,7 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload;
+        state.isAuthenticated = true;
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -95,6 +97,7 @@ const authSlice = createSlice({
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.error = null;
+        state.isAuthenticated = false;
       })
       // Get Current User
       .addCase(getCurrentUser.pending, (state) => {
@@ -103,6 +106,7 @@ const authSlice = createSlice({
       .addCase(getCurrentUser.fulfilled, (state, action) => {
         state.loading = false;
         state.user = action.payload;
+        state.isAuthenticated = !!action.payload;
       })
       .addCase(getCurrentUser.rejected, (state) => {
         state.loading = false;

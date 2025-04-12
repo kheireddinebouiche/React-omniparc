@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { NotificationType } from '../components/Notification';
+import { Notification } from '../components/Notification';
+
+type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
 interface NotificationContextType {
   showNotification: (message: string, severity: NotificationType) => void;

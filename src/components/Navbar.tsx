@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   Box,
   Flex,
@@ -11,213 +13,194 @@ import {
   useDisclosure,
   useColorModeValue,
   Stack,
-  Avatar,
-  Tooltip,
   Text,
+  Avatar,
   useToast,
+  Badge,
+  Tooltip,
+  Icon,
 } from '@chakra-ui/react';
-import { HamburgerIcon, CloseIcon } from '@chakra-ui/icons';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+import { HamburgerIcon, CloseIcon, ChevronDownIcon } from '@chakra-ui/icons';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logout } from '../store/slices/authSlice';
-import { RootState, AppDispatch } from '../store';
+import authService from '../services/authService';
 import { UserRole } from '../types';
 import { FaHome, FaTruck, FaCalendarAlt, FaUser, FaChartLine } from 'react-icons/fa';
 
-const Links = [
-  { name: 'Accueil', path: '/' },
-  { name: 'Équipements', path: '/equipments' },
-  { name: 'À propos', path: '/about' },
-];
+interface NavLinkProps {
+  children: React.ReactNode;
+  to: string;
+}
 
-const NavLink = ({ children, to }: { children: React.ReactNode; to: string }) => (
-  <RouterLink to={to}>
-    <Box
-      px={2}
-      py={1}
-      rounded={'md'}
-      _hover={{
-        textDecoration: 'none',
-        bg: useColorModeValue('gray.200', 'gray.700'),
-      }}
-    >
-      {children}
-    </Box>
+const NavLink = ({ children, to }: NavLinkProps) => (
+  <RouterLink
+    to={to}
+    style={{
+      padding: '0.5rem 1rem',
+      borderRadius: '0.375rem',
+      textDecoration: 'none',
+      color: 'inherit',
+    }}
+  >
+    {children}
   </RouterLink>
 );
 
 const Navbar = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const dispatch = useDispatch<AppDispatch>();
-  const { user } = useSelector((state: RootState) => state.auth);
   const location = useLocation();
   const toast = useToast();
+  const dispatch = useAppDispatch();
+  const { user, isAuthenticated } = useAppSelector((state) => state.auth);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogout = async () => {
     try {
-      await dispatch(logout());
+      setIsLoading(true);
+      await authService.logoutUser();
+      dispatch(logout());
       toast({
-        title: "Déconnexion réussie",
-        description: "Vous avez été déconnecté avec succès.",
-        status: "success",
+        title: 'Déconnexion réussie',
+        status: 'success',
         duration: 3000,
         isClosable: true,
       });
-    } catch (err) {
+    } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la déconnexion",
-        status: "error",
+        title: 'Erreur lors de la déconnexion',
+        status: 'error',
         duration: 3000,
         isClosable: true,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const isActive = (path: string) => location.pathname === path;
 
-  const navButtons = [
-    { name: 'Tableau de bord', icon: FaChartLine, path: '/dashboard', roles: [UserRole.ADMIN, UserRole.PROFESSIONAL, UserRole.BUSINESS] },
-    { name: 'Engins', icon: FaTruck, path: '/equipments', roles: [UserRole.ADMIN, UserRole.PROFESSIONAL, UserRole.BUSINESS] },
-    { name: 'Locations', icon: FaCalendarAlt, path: '/rentals', roles: [UserRole.ADMIN, UserRole.PROFESSIONAL, UserRole.BUSINESS] },
-    { name: 'Calendrier', icon: FaCalendarAlt, path: '/calendar', roles: [UserRole.ADMIN, UserRole.PROFESSIONAL, UserRole.BUSINESS] },
-  ];
+  const getNavLinks = () => {
+    const links = [
+      { name: 'Accueil', path: '/' },
+      { name: 'Équipements', path: '/equipment' },
+    ];
+
+    if (isAuthenticated) {
+      if (user?.role === UserRole.ADMIN) {
+        links.push({ name: 'Tableau de bord', path: '/dashboard' });
+      } else {
+        links.push(
+          { name: 'Mon Profil', path: '/profile' },
+          { name: 'Mes Équipements', path: '/my-equipment' }
+        );
+      }
+    }
+
+    return links;
+  };
+
+  const navLinks = getNavLinks();
 
   return (
-    <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4} position="sticky" top={0} zIndex={1000} shadow="sm">
-      <Flex h={16} alignItems={'center'} justifyContent={'space-between'}>
+    <Box bg={useColorModeValue('white', 'gray.900')} px={4} boxShadow="sm">
+      <Flex h={16} alignItems="center" justifyContent="space-between">
         <IconButton
-          size={'md'}
+          size="md"
           icon={isOpen ? <CloseIcon /> : <HamburgerIcon />}
-          aria-label={'Open Menu'}
-          display={{ md: 'none' }}
+          aria-label="Open Menu"
+          display={{ base: 'flex', md: 'none' }}
           onClick={isOpen ? onClose : onOpen}
         />
-        <HStack spacing={8} alignItems={'center'}>
-          <Box fontWeight="bold" fontSize="xl" color={useColorModeValue('blue.600', 'blue.300')}>
+        <HStack spacing={8} alignItems="center">
+          <Box fontWeight="bold" fontSize="xl">
             Location Voiture
           </Box>
-          <HStack as={'nav'} spacing={4} display={{ base: 'none', md: 'flex' }}>
-            {Links.map((link) => (
+          <HStack as="nav" spacing={4} display={{ base: 'none', md: 'flex' }}>
+            {navLinks.map((link) => (
               <NavLink key={link.path} to={link.path}>
-                {link.name}
+                <Text
+                  color={isActive(link.path) ? 'blue.500' : 'inherit'}
+                  fontWeight={isActive(link.path) ? 'bold' : 'normal'}
+                >
+                  {link.name}
+                </Text>
               </NavLink>
             ))}
           </HStack>
         </HStack>
-        <Flex alignItems={'center'} gap={4}>
-          {user && (user.role === UserRole.ADMIN || user.role === UserRole.PROFESSIONAL || user.role === UserRole.BUSINESS) && (
-            <HStack spacing={2} display={{ base: 'none', md: 'flex' }}>
-              {navButtons.map((button) => (
-                <Tooltip key={button.path} label={button.name} placement="bottom">
-                  <Button
-                    as={RouterLink}
-                    to={button.path}
-                    size="sm"
-                    leftIcon={<button.icon />}
-                    variant={isActive(button.path) ? 'solid' : 'ghost'}
-                    colorScheme={isActive(button.path) ? 'blue' : 'gray'}
-                    _hover={{
-                      transform: 'translateY(-2px)',
-                      boxShadow: 'md',
-                    }}
-                    transition="all 0.2s"
-                  >
-                    {button.name}
-                  </Button>
-                </Tooltip>
-              ))}
-            </HStack>
-          )}
-          {user ? (
+        <Flex alignItems="center">
+          {isAuthenticated ? (
             <Menu>
               <MenuButton
                 as={Button}
-                rounded={'full'}
-                variant={'outline'}
-                cursor={'pointer'}
+                rounded="full"
+                variant="link"
+                cursor="pointer"
                 minW={0}
-                display="flex"
-                alignItems="center"
-                gap={2}
-                px={4}
-                py={2}
-                _hover={{
-                  bg: useColorModeValue('gray.100', 'gray.700'),
-                  transform: 'translateY(-1px)',
-                  boxShadow: 'sm',
-                }}
-                transition="all 0.2s"
               >
-                <Avatar 
-                  size={'sm'} 
-                  name={user.email}
-                  bg={useColorModeValue('blue.500', 'blue.200')}
-                  color={useColorModeValue('white', 'gray.800')}
+                <Avatar
+                  size="sm"
+                  name={user?.firstName ? `${user.firstName} ${user.lastName}` : undefined}
                 />
-                <Box display={{ base: 'none', md: 'block' }}>
-                  <Text fontWeight="medium" fontSize="sm">
-                    {user.email}
-                  </Text>
-                  <Text fontSize="xs" color={useColorModeValue('gray.600', 'gray.400')}>
-                    {user.role}
-                  </Text>
-                </Box>
               </MenuButton>
               <MenuList>
-                <MenuItem as={RouterLink} to="/profile" icon={<FaUser />}>Profil</MenuItem>
-                {(user.role === UserRole.ADMIN || user.role === UserRole.PROFESSIONAL || user.role === UserRole.BUSINESS) && (
-                  <MenuItem as={RouterLink} to="/dashboard" icon={<FaChartLine />}>Tableau de bord</MenuItem>
+                <MenuItem as={RouterLink} to="/profile">
+                  Mon Profil
+                </MenuItem>
+                {user?.role === UserRole.ADMIN && (
+                  <MenuItem as={RouterLink} to="/dashboard">
+                    Tableau de bord
+                  </MenuItem>
                 )}
-                <MenuItem onClick={handleLogout}>Déconnexion</MenuItem>
+                {(user?.role === UserRole.PROFESSIONAL || user?.role === UserRole.BUSINESS) && (
+                  <MenuItem as={RouterLink} to="/professional-dashboard">
+                    Tableau de bord
+                  </MenuItem>
+                )}
+                <MenuItem onClick={handleLogout} disabled={isLoading}>
+                  {isLoading ? 'Déconnexion...' : 'Déconnexion'}
+                </MenuItem>
               </MenuList>
             </Menu>
           ) : (
-            <Stack
-              flex={{ base: 1, md: 0 }}
-              justify={'flex-end'}
-              direction={'row'}
-              spacing={6}
-            >
+            <HStack spacing={4}>
               <Button
                 as={RouterLink}
                 to="/login"
-                fontSize={'sm'}
-                fontWeight={400}
-                variant={'link'}
+                variant="ghost"
+                colorScheme="blue"
               >
                 Connexion
               </Button>
               <Button
                 as={RouterLink}
                 to="/register"
-                display={{ base: 'none', md: 'inline-flex' }}
-                fontSize={'sm'}
-                fontWeight={600}
-                color={'white'}
-                bg={'blue.400'}
-                _hover={{
-                  bg: 'blue.300',
-                }}
+                colorScheme="blue"
               >
                 Inscription
               </Button>
-            </Stack>
+            </HStack>
           )}
         </Flex>
       </Flex>
 
-      {isOpen ? (
+      {/* Mobile menu */}
+      {isOpen && (
         <Box pb={4} display={{ md: 'none' }}>
-          <Stack as={'nav'} spacing={4}>
-            {Links.map((link) => (
+          <Stack as="nav" spacing={4}>
+            {navLinks.map((link) => (
               <NavLink key={link.path} to={link.path}>
-                {link.name}
+                <Text
+                  color={isActive(link.path) ? 'blue.500' : 'inherit'}
+                  fontWeight={isActive(link.path) ? 'bold' : 'normal'}
+                >
+                  {link.name}
+                </Text>
               </NavLink>
             ))}
           </Stack>
         </Box>
-      ) : null}
+      )}
     </Box>
   );
 };
